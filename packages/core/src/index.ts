@@ -4,3 +4,5 @@ export * from './meta/types';
 export * from './meta/defineDocType';
 export * from './meta/registry';
 export * from './org/hierarchy';
+export * from './meta/customFields';
+export * from './validate/buildSchema';
