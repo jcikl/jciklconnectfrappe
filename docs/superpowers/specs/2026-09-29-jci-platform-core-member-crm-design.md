@@ -132,7 +132,7 @@ docs/superpowers/specs/   design spec (written and committed first, per brainsto
 **Core**
 - **Organization:**
   - Fields: `level` (hq/area/national/national_area/local), `parent`, `orgPath`, `currency`, `timezone`.
-  - Seed data: JCI → Asia Pacific → JCI Malaysia → its area → JCI Kuala Lumpur.
+  - Seed data: JCI (hq) → JCI Asia Pacific (area) → JCI Malaysia (national) → JCI Malaysia Area Central (national_area) → JCI Kuala Lumpur (local).
 - **Role**, **RoleAssignment**, **CustomField**, **Version**.
 
 **Membership**
