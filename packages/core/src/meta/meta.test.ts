@@ -33,6 +33,7 @@ describe('defineDocType', () => {
 
   it('defaults naming to autoId', () => {
     const { naming: _n, ...rest } = personInput();
+    void _n;
     expect(defineDocType(rest).naming).toEqual({ kind: 'autoId' });
   });
 
@@ -76,6 +77,7 @@ describe('defineDocType', () => {
 
   it('requires a collection unless child, and forbids permissions on child DocTypes', () => {
     const { collection: _c, ...noCollection } = personInput();
+    void _c;
     expect(() => defineDocType(noCollection)).toThrow(/collection/);
     expect(() =>
       defineDocType({ name: 'Row', module: 'm', isChild: true, fields: [], permissions: [{ role: 'Member', read: true }] }),

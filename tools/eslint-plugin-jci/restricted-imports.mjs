@@ -1,0 +1,46 @@
+export const RESTRICTED_UI_IMPORTS = {
+  paths: [
+    {
+      name: 'react-native',
+      importNames: [
+        'View',
+        'Text',
+        'Pressable',
+        'TextInput',
+        'Image',
+        'ImageBackground',
+        'ScrollView',
+        'FlatList',
+        'SectionList',
+        'Modal',
+        'TouchableOpacity',
+        'TouchableHighlight',
+        'TouchableWithoutFeedback',
+        'StyleSheet',
+        'ActivityIndicator',
+        'Switch',
+        'SafeAreaView',
+      ],
+      message: 'Use components from @jci/ui instead of react-native primitives.',
+    },
+    { name: 'nativewind', message: 'Styling lives in @jci/ui. Use useTheme() from @jci/ui.' },
+    { name: 'react-native-safe-area-context', message: 'Use Screen or layouts from @jci/ui.' },
+  ],
+  patterns: [
+    {
+      group: [
+        '@tanstack/*',
+        'lucide-react-native',
+        '@expo/vector-icons',
+        '@expo/vector-icons/*',
+        'react-native-reanimated',
+        'react-native-svg',
+        'clsx',
+        'tailwind-merge',
+        'class-variance-authority',
+        '@rn-primitives/*',
+      ],
+      message: 'UI libraries may only be used inside packages/ui. Import from @jci/ui.',
+    },
+  ],
+};
