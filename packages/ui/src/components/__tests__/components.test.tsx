@@ -5,6 +5,7 @@ import { Card } from '../Card';
 import { EmptyState } from '../EmptyState';
 import { Input } from '../Input';
 import { Text } from '../../primitives/Text';
+import { tokens } from '../../tokens';
 
 describe('Button', () => {
   it('is an accessible button that fires onPress', async () => {
@@ -60,6 +61,20 @@ describe('Input', () => {
   it('shows the hint when there is no error', async () => {
     await render(<Input label="Phone" value="" onChangeText={() => {}} hint="Include country code" />);
     expect(screen.getByText('Include country code')).toBeTruthy();
+  });
+
+  it('keeps its own className and a11y props when a spread tries to override them', async () => {
+    const override = { className: 'text-red-500', accessibilityLabel: 'Hijacked' } as object;
+    await render(<Input label="Email" value="" onChangeText={() => {}} {...override} />);
+    const cls: string = screen.getByLabelText('Email').props.className;
+    expect(cls).toContain('min-h-11');
+    expect(cls).not.toContain('text-red-500');
+    expect(screen.queryByLabelText('Hijacked')).toBeNull();
+  });
+
+  it('uses the muted text token for the placeholder colour', async () => {
+    await render(<Input label="Email" value="" onChangeText={() => {}} placeholder="you@example.com" />);
+    expect(screen.getByLabelText('Email').props.placeholderTextColor).toBe(tokens.semantic.light.textMuted);
   });
 });
 

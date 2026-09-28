@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ESLint } from 'eslint';
@@ -88,6 +89,14 @@ describe('UI enforcement in app code', { timeout: 30000 }, () => {
 
   it('checks .jsx files in packages/ui for hex colours', async () => {
     expect(await ruleIds('packages/ui/src/components/__fixture__.jsx', 'export const C = () => <X color="#FFFFFF" />;\n')).toContain('jci/no-hex-colors');
+  });
+
+  it('dev UI gallery shows a Box surface sample and lints clean', async () => {
+    const file = path.join(root, 'apps/app/app/(dev)/ui-gallery.tsx');
+    const source = readFileSync(file, 'utf8');
+    expect(source).toMatch(/<Card title="Surfaces">[\s\S]*<Box surface="muted" padding="md" rounded bordered>[\s\S]*<Text/);
+    const [result] = await eslint.lintFiles([file]);
+    expect(result.messages).toEqual([]);
   });
 
   it('still blocks hex colours inside packages/ui source', async () => {

@@ -24,7 +24,7 @@ export interface TextProps {
 
 export function Text({ children, variant = 'body', tone = 'default', ...rest }: TextProps) {
   return (
-    <RNText className={cn(VARIANT[variant], TONE[tone])} {...rest}>
+    <RNText {...rest} className={cn(VARIANT[variant], TONE[tone])}>
       {children}
     </RNText>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Redirect } from 'expo-router';
-import { Badge, Button, Card, EmptyState, Heading, Input, Screen, Stack, Text, useTheme } from '@jci/ui';
+import { Badge, Box, Button, Card, EmptyState, Heading, Input, Screen, Stack, Text, useTheme } from '@jci/ui';
 
 export default function UiGallery() {
   const { scheme, toggle } = useTheme();
@@ -72,6 +72,12 @@ export default function UiGallery() {
           <Badge label="Due soon" tone="warning" />
           <Badge label="Overdue" tone="danger" />
         </Stack>
+      </Card>
+
+      <Card title="Surfaces">
+        <Box surface="muted" padding="md" rounded bordered>
+          <Text>Muted surface, medium padding, rounded and bordered</Text>
+        </Box>
       </Card>
 
       <Card title="Empty state">

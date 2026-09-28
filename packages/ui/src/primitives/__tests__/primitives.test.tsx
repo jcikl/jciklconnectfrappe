@@ -14,6 +14,13 @@ describe('primitives', () => {
     expect(cls).toContain('dark:text-text-muted-dark');
   });
 
+  it('Text keeps its tone class when a spread tries to override className', async () => {
+    await render(<Text tone="muted" {...({ className: 'text-red-500' } as object)}>X</Text>);
+    const cls: string = screen.getByText('X').props.className;
+    expect(cls).toContain('text-text-muted');
+    expect(cls).not.toContain('text-red-500');
+  });
+
   it('Heading exposes the header role', async () => {
     await render(<Heading level={2}>Members</Heading>);
     expect(screen.getByRole('header', { name: 'Members' })).toBeTruthy();
