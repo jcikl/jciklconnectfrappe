@@ -4,9 +4,10 @@
   "workspaces": ["apps/*", "packages/*"],
   "engines": { "node": ">=20.19" },
   "scripts": {
-    "test": "npm run test:node",
+    "test": "npm run test:node && npm run test:ui",
     "test:node": "vitest run",
-    "typecheck": "tsc -p packages/core --noEmit",
+    "test:ui": "npm test -w @jci/ui",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/ui --noEmit",
     "check": "npm run typecheck && npm test"
   },
   "devDependencies": {
