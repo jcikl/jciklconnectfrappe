@@ -24,19 +24,25 @@ export default defineConfig(
     files: ['tools/**/*.mjs', 'eslint.config.mjs'],
     languageOptions: { globals: globals.node },
   },
+  // Parse JSX in every source file we enforce rules on, including .js/.jsx.
+  {
+    files: ['apps/app/**/*.{js,jsx,mjs,cjs}', 'packages/doctypes/**/*.{js,jsx,mjs,cjs}', 'packages/ui/src/**/*.{js,jsx,mjs,cjs}'],
+    languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
+  },
   // App code: UI only via @jci/ui.
   {
-    files: ['apps/app/**/*.{ts,tsx}', 'packages/doctypes/**/*.{ts,tsx}'],
+    files: ['apps/app/**/*.{js,jsx,ts,tsx,mjs,cjs}', 'packages/doctypes/**/*.{js,jsx,ts,tsx,mjs,cjs}'],
     plugins: { jci },
     rules: {
       'no-restricted-imports': ['error', RESTRICTED_UI_IMPORTS],
+      'jci/no-restricted-dynamic-imports': 'error',
       'jci/no-raw-styling': 'error',
       'jci/no-hex-colors': 'error',
     },
   },
   // The library itself may use primitives and className, but colours still come only from tokens.json.
   {
-    files: ['packages/ui/src/**/*.{ts,tsx}'],
+    files: ['packages/ui/src/**/*.{js,jsx,ts,tsx,mjs,cjs}'],
     plugins: { jci },
     rules: { 'jci/no-hex-colors': 'error' },
   },

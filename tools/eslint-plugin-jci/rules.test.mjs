@@ -13,11 +13,20 @@ const tester = new RuleTester({
 });
 
 tester.run('no-raw-styling', noRawStyling, {
-  valid: [{ code: '<Button label="Save" onPress={save} variant="primary" />' }],
+  valid: [
+    { code: '<Button label="Save" onPress={save} variant="primary" />' },
+    { code: '<Button {...props} />' },
+    { code: "<Button {...{ label: 'Save', variant: 'primary' }} />" },
+  ],
   invalid: [
     { code: '<View className="p-4" />', errors: [{ messageId: 'raw' }] },
     { code: '<View style={{ padding: 4 }} />', errors: [{ messageId: 'raw' }] },
     { code: '<List contentContainerStyle={{ gap: 4 }} />', errors: [{ messageId: 'raw' }] },
+    { code: "<Box {...{ className: 'p-4' }} />", errors: [{ messageId: 'raw' }] },
+    { code: '<Box {...{ style: { padding: 4 } }} />', errors: [{ messageId: 'raw' }] },
+    { code: "<List {...{ 'contentContainerStyle': {} }} />", errors: [{ messageId: 'raw' }] },
+    { code: "<List {...{ tone: 'muted', contentContainerClassName: 'gap-2' }} />", errors: [{ messageId: 'raw' }] },
+    { code: "<Box {...{ ...{ className: 'p-4' } }} />", errors: [{ messageId: 'raw' }] },
   ],
 });
 
