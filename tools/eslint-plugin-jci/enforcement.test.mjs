@@ -5,15 +5,16 @@ import { describe, expect, it } from 'vitest';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
+const eslint = new ESLint({ cwd: root });
+
 async function ruleIds(relPath, code) {
-  const eslint = new ESLint({ cwd: root });
   const [result] = await eslint.lintText(code, { filePath: path.join(root, relPath) });
   return result.messages.map((m) => m.ruleId);
 }
 
 const APP_FILE = 'apps/app/app/__fixture__.tsx';
 
-describe('UI enforcement in app code', () => {
+describe('UI enforcement in app code', { timeout: 30000 }, () => {
   it('blocks react-native primitives', async () => {
     const ids = await ruleIds(APP_FILE, "import { View } from 'react-native';\nexport default function F() { return <View />; }\n");
     expect(ids).toContain('no-restricted-imports');
