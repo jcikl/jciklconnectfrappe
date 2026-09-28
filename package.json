@@ -7,8 +7,9 @@
     "test": "npm run test:node && npm run test:ui",
     "test:node": "vitest run",
     "test:ui": "npm test -w @jci/ui",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/ui --noEmit",
-    "check": "npm run typecheck && npm test"
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/ui --noEmit && tsc -p apps/app --noEmit",
+    "check": "npm run typecheck && npm test",
+    "build:web": "npm run export:web -w @jci/app"
   },
   "devDependencies": {
     "typescript": "~5.8.0",
