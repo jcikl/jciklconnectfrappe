@@ -1,0 +1,16 @@
+{
+  "name": "jci-platform",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=20.19" },
+  "scripts": {
+    "test": "npm run test:node",
+    "test:node": "vitest run",
+    "typecheck": "tsc -p packages/core --noEmit",
+    "check": "npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.0",
+    "vitest": "^3.2.0"
+  }
+}
