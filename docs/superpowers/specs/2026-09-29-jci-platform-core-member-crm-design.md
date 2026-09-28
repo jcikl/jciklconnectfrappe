@@ -19,16 +19,24 @@ Decisions confirmed with the user:
 - **The organisation model supports the full hierarchy** (HQ > Area > National > National Area > Local). The first launch covers only JCI KL.
 - **Membership belongs to a Local; board positions can be held at any level** and are recorded per term.
 - **Phase 1 builds the core engine plus the Member CRM.** Events, finance and LMS follow later, one module at a time.
+- **One UI/UX component library (`packages/ui`) governs the whole system.** All app UI must be built from its components; using raw primitives or third-party UI libraries directly in app code is not allowed, and lint enforces this (see "UI component library").
 
 ## Architecture
 
 **Repo:** `C:\Users\User\Documents\Cursor projects\Frappe`. It gets its own `git init`, because the parent home directory is itself a git repo. It uses npm workspaces:
 ```
-apps/app/                 Expo Router (web + native), NativeWind, navy #1B3A6B / gold #D4AF37
+apps/app/                 Expo Router (web + native); screens only, all UI imported from @jci/ui
   app/(auth)/             login (email + Google)
   app/(portal)/           member-facing: home, profile, my membership & dues, directory, board
   app/(desk)/             admin "Desk": /desk/[doctype] list, /desk/[doctype]/[id] form
-  components/desk/        generic renderers; *.web.tsx uses DOM + TanStack Table, native uses a simplified RN version
+  app/(dev)/ui-gallery    component catalogue (dev builds only)
+packages/ui/              @jci/ui — the single UI/UX component library
+  tokens/                 colours, typography, spacing, radius, shadow, motion; light + dark
+  primitives/             Box, Stack, Text, Heading, Icon, Pressable, Image, Divider
+  components/             Button, Input, Select, Checkbox, DatePicker, Avatar, Badge, Card, Modal, Sheet, Toast, Tabs, EmptyState, Skeleton…
+  fields/                 one FieldControl per DocType field type (Data, Currency, Link, Table…)
+  desk/                   DocList, DocForm, FilterBar, Timeline, LinkPicker; *.web.tsx uses DOM + TanStack Table, native uses a simplified RN version
+  layouts/                DeskShell (sidebar), PortalShell (bottom tabs), AuthShell
 packages/core/            pure TS, shared by the app and the functions
   meta/                   DocType/Field types, field types, naming series, defineDocType()
   validate/               builds Zod schemas from meta (+ custom fields)
@@ -61,6 +69,39 @@ docs/superpowers/specs/   design spec (written and committed first, per brainsto
   This gives Frappe's guarantees (validation, permissions and a full audit trail) without needing Firestore triggers.
 - **Access for rules:** the server maintains `userAccess/{uid}`, containing `{personId, roles:[{role, orgId, withDescendants}], orgPaths}`. Firestore rules read that doc.
 - **Org roll-up:** every doc carries `orgId` and `orgPath: string[]` (its ancestors), so a parent level queries its subtree with `orgPath array-contains X`.
+
+## UI component library (packages/ui)
+
+**The rule:** every screen in `apps/app` builds its UI only from `@jci/ui`. The following may be imported **only inside `packages/ui`**:
+- `react-native` view primitives: View, Text, Pressable, TextInput, Image, ScrollView, FlatList, Modal
+- NativeWind `className` styling
+- `@tanstack/react-table`, icon packs, animation libraries
+
+**Enforcement:**
+- **ESLint** in `apps/app` and `packages/doctypes`:
+  - `no-restricted-imports` blocks those modules.
+  - A custom rule bans the `className`/`style` props on elements.
+  - CI fails on any violation.
+- **Tokens only:** colours, spacing and fonts come from `tokens/`. Components take semantic props (`variant`, `size`, `tone`) rather than free styling, and no hex values appear outside `tokens/`.
+- **A missing component gets built in `packages/ui` first**, with a gallery entry, and only then used in a screen. No one-off UI in app code.
+
+**Foundation:**
+- NativeWind (Tailwind) styling, with the tokens feeding `tailwind.config`.
+- Base components come from react-native-reusables (the shadcn-style copy-in library for React Native). They are copied into `packages/ui` and owned by this repo, so there is no runtime dependency to drift.
+- Brand: navy `#1B3A6B` and gold `#D4AF37`, with light and dark themes.
+
+**How DocTypes use it:**
+- The Desk renderer maps each field type to `fields/FieldControl`, so a new DocType automatically gets consistent forms and lists.
+- The same components render on Web, iOS and Android. Where a platform needs something different, a `.web.tsx` file handles it inside `packages/ui`, never in the app.
+
+**Accessibility and quality, built into the components:**
+- Accessibility labels and roles.
+- Minimum 44 px touch targets.
+- WCAG AA contrast, checked against the tokens.
+- Focus states on web.
+- Loading, empty and error states (`Skeleton`, `EmptyState`, `ErrorState`).
+
+**Catalogue:** the `/ui-gallery` route (dev builds only) shows every component with all its variants in light and dark themes. It is the reference for developers.
 
 ## Core engine (packages/core)
 
@@ -138,6 +179,8 @@ docs/superpowers/specs/   design spec (written and committed first, per brainsto
 - Board of the current term.
 - Mobile uses the same routes. The Desk on mobile renders simplified RN lists and forms.
 
+All of the screens above are assembled only from `@jci/ui` components and layouts.
+
 ## Payments
 - Port `toyyibpay-api.mjs` / `toyyibpay-callback.mjs` into `_shared` helpers, keeping Eric's safeguards:
   - The callback URL carries a shared secret.
@@ -180,6 +223,11 @@ docs/superpowers/specs/   design spec (written and committed first, per brainsto
   - Naming series.
   - The membership type computation, as table tests copied from the cases in Eric's rules.
   - Dues calculation, including the RM50 first-year fee.
+- **UI library:**
+  - The lint rule has a test: a fixture importing `View` from `react-native` or using `className` inside `apps/app` must fail lint.
+  - `npm run lint` runs in CI.
+  - Component unit tests (`@testing-library/react-native`) cover variants and accessibility props.
+  - The `/ui-gallery` route is reviewed on web and on a device in both themes.
 - **Firestore rules tests** with `@firebase/rules-unit-testing` in the emulator:
   - A member cannot read another org's private data or write DocType collections directly.
   - A National officer can read the Local subtree.
@@ -195,9 +243,9 @@ docs/superpowers/specs/   design spec (written and committed first, per brainsto
 ## First execution steps after approval
 1. `git init` the Frappe folder, then write and commit the design spec to `docs/superpowers/specs/2026-09-29-jci-platform-core-member-crm-design.md`.
 2. Run the writing-plans skill to produce the detailed task-by-task implementation plan, milestones M1 to M7:
-   - M1: scaffold + core
+   - M1: scaffold + core + `@jci/ui` foundation (tokens, primitives, base components, lint enforcement, gallery)
    - M2: API + rules + audit
-   - M3: Desk renderer
+   - M3: Desk renderer (`@jci/ui` fields/ and desk/)
    - M4: membership DocTypes
    - M5: Portal
    - M6: dues + ToyyibPay
