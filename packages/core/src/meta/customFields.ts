@@ -10,8 +10,18 @@ export function validateCustomField(meta: DocTypeMeta, field: FieldDef): void {
   }
 }
 
+/** Validates every custom field and rejects duplicate fieldnames within the list. */
+export function validateCustomFields(meta: DocTypeMeta, custom: readonly FieldDef[]): void {
+  const seen = new Set<string>();
+  for (const f of custom) {
+    validateCustomField(meta, f);
+    if (seen.has(f.fieldname)) throw new MetaError(`${meta.name}.${f.fieldname}: duplicate custom fieldname`);
+    seen.add(f.fieldname);
+  }
+}
+
 export function mergeCustomFields(meta: DocTypeMeta, custom: readonly FieldDef[]): FieldDef[] {
-  for (const f of custom) validateCustomField(meta, f);
+  validateCustomFields(meta, custom);
   return [...meta.fields, ...custom.map((f) => ({ ...f, isCustom: true }))];
 }
 

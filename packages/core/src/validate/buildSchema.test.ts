@@ -102,4 +102,26 @@ describe('buildSchema', () => {
   it('throws MetaError for Table fields without resolveChild', () => {
     expect(() => buildSchema(member)).toThrow(MetaError);
   });
+
+  it('requires the custom object on create when a custom field is reqd', () => {
+    const customFields = [{ fieldname: 'shirtSize', label: 'Shirt', fieldtype: 'Data' as const, reqd: true }];
+    expect(buildSchema(member, { resolveChild, customFields }).safeParse({ fullName: 'A' }).success).toBe(false);
+    expect(buildSchema(member, { resolveChild, customFields, mode: 'update' }).safeParse({ fullName: 'A' }).success).toBe(true);
+  });
+
+  it('validates custom field definitions and rejects duplicates', () => {
+    const bad = (fieldname: string) => () =>
+      buildSchema(member, { resolveChild, customFields: [{ fieldname, label: 'X', fieldtype: 'Data' }] });
+    expect(bad('__proto__')).toThrow(MetaError);
+    expect(bad('Bad Name')).toThrow(MetaError);
+    expect(() =>
+      buildSchema(member, {
+        resolveChild,
+        customFields: [
+          { fieldname: 'z', label: 'Z', fieldtype: 'Data' },
+          { fieldname: 'z', label: 'Z', fieldtype: 'Data' },
+        ],
+      }),
+    ).toThrow(/duplicate/);
+  });
 });

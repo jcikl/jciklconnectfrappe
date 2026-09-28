@@ -5,6 +5,8 @@ import { FIELD_TYPES, SYSTEM_FIELDS, type DocTypeInput, type DocTypeMeta, type F
 const DOCTYPE_NAME = /^[A-Z][A-Za-z0-9]*$/;
 const FIELDNAME = /^[a-z][A-Za-z0-9]*$/;
 const RESERVED = new Set<string>([...SYSTEM_FIELDS, 'custom']);
+/** Highest field/permission permlevel accepted (Frappe uses 0-9). */
+export const MAX_PERMLEVEL = 9;
 
 export function validateField(doctype: string, f: FieldDef): void {
   const where = `${doctype}.${f.fieldname}`;
@@ -19,8 +21,8 @@ export function validateField(doctype: string, f: FieldDef): void {
   if (f.fieldtype === 'Link' && !f.link) throw new MetaError(`${where}: Link fields need a link target`);
   if (f.fieldtype === 'Table' && !f.childDocType) throw new MetaError(`${where}: Table fields need a childDocType`);
   const level = f.permlevel ?? 0;
-  if (!Number.isInteger(level) || level < 0 || level > 9) {
-    throw new MetaError(`${where}: permlevel must be an integer 0-9`);
+  if (!Number.isInteger(level) || level < 0 || level > MAX_PERMLEVEL) {
+    throw new MetaError(`${where}: permlevel must be an integer 0-${MAX_PERMLEVEL}`);
   }
 }
 

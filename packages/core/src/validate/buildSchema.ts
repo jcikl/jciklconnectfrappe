@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MetaError } from '../errors';
+import { validateCustomFields } from '../meta/customFields';
 import type { DocTypeMeta, FieldDef } from '../meta/types';
 
 export interface BuildSchemaOptions {
@@ -60,9 +61,12 @@ export function buildSchema(meta: DocTypeMeta, opts: BuildSchemaOptions = {}) {
   for (const f of meta.fields) shape[f.fieldname] = fieldSchema(f, opts);
   const custom = opts.customFields ?? [];
   if (custom.length > 0) {
+    validateCustomFields(meta, custom);
     const customShape: Record<string, z.ZodType> = {};
     for (const f of custom) customShape[f.fieldname] = fieldSchema(f, opts);
-    shape.custom = z.strictObject(customShape).optional();
+    const customSchema = z.strictObject(customShape);
+    const customRequired = opts.mode !== 'update' && custom.some((f) => f.reqd === true);
+    shape.custom = customRequired ? customSchema : customSchema.optional();
   }
   return z.strictObject(shape);
 }

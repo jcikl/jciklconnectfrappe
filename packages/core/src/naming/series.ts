@@ -18,6 +18,9 @@ export interface ParsedSeries {
  * anything else is literal. Example: 'MEM-.YYYY.-.#####' -> 'MEM-2026-00001'.
  */
 export function parseSeriesPattern(pattern: string): ParsedSeries {
+  if (pattern.includes('/')) {
+    throw new MetaError(`Series pattern "${pattern}" must not contain "/" (it becomes part of a document id)`);
+  }
   const tokens = pattern.split('.');
   const hashIndexes = tokens.flatMap((t, i) => (/^#+$/.test(t) ? [i] : []));
   if (hashIndexes.length !== 1) {

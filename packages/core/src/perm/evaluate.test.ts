@@ -98,4 +98,17 @@ describe('field-level permissions', () => {
     ]);
     expect(readableFields(person, person.fields, outsider, klDoc)).toEqual([]);
   });
+
+  it('grants no higher permlevel without level-0 access for the same action', () => {
+    const levelOneOnly = defineDocType({
+      name: 'Person',
+      module: 'membership',
+      collection: 'persons',
+      fields: person.fields,
+      permissions: [{ role: 'Member', permlevel: 1, read: true, write: true }],
+    });
+    expect(readableFields(levelOneOnly, levelOneOnly.fields, member, klDoc)).toEqual([]);
+    expect(can(levelOneOnly, member, 'read', klDoc)).toBe(false);
+    expect(unwritableKeys(levelOneOnly, levelOneOnly.fields, member, klDoc, { membershipType: 'Official' })).toEqual(['membershipType']);
+  });
 });

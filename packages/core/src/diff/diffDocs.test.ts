@@ -9,6 +9,8 @@ describe('deepEqual', () => {
     expect(deepEqual([1, 2], [2, 1])).toBe(false);
     expect(deepEqual(new Date(5), new Date(5))).toBe(true);
     expect(deepEqual(null, {})).toBe(false);
+    expect(deepEqual(new Date(5), {})).toBe(false);
+    expect(deepEqual({}, new Date(5))).toBe(false);
   });
 });
 

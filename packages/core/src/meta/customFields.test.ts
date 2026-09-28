@@ -22,4 +22,19 @@ describe('custom fields', () => {
     expect(() => validateCustomField(meta, { fieldname: 'fullName', label: 'Dup', fieldtype: 'Data' })).toThrow(/collides/);
     expect(() => validateCustomField(meta, { fieldname: 'Bad Name', label: 'B', fieldtype: 'Data' })).toThrow(MetaError);
   });
+
+  it('rejects duplicate custom fieldnames in one call', () => {
+    expect(() =>
+      mergeCustomFields(meta, [
+        { fieldname: 'z', label: 'Z', fieldtype: 'Data', permlevel: 2 },
+        { fieldname: 'z', label: 'Z again', fieldtype: 'Data', permlevel: 0 },
+      ]),
+    ).toThrow(/duplicate/);
+    expect(() =>
+      mergeCustomFields(meta, [
+        { fieldname: 'z', label: 'Z', fieldtype: 'Data' },
+        { fieldname: 'z', label: 'Z again', fieldtype: 'Data' },
+      ]),
+    ).toThrow(MetaError);
+  });
 });

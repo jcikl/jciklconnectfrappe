@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MetaError } from '../errors';
-import { defineDocType } from './defineDocType';
+import { defineDocType, MAX_PERMLEVEL } from './defineDocType';
 import { createRegistry } from './registry';
 import type { DocTypeInput } from './types';
 
@@ -60,6 +60,14 @@ describe('defineDocType', () => {
   it('rejects invalid permlevels', () => {
     const base = personInput();
     expect(() => defineDocType({ ...base, fields: [...base.fields, { fieldname: 'x', label: 'X', fieldtype: 'Data', permlevel: 10 }] })).toThrow(/permlevel/);
+  });
+
+  it('exports MAX_PERMLEVEL = 9 as the highest accepted permlevel', () => {
+    const base = personInput();
+    expect(MAX_PERMLEVEL).toBe(9);
+    const field = { fieldname: 'x', label: 'X', fieldtype: 'Data' as const };
+    expect(() => defineDocType({ ...base, fields: [...base.fields, { ...field, permlevel: MAX_PERMLEVEL }] })).not.toThrow();
+    expect(() => defineDocType({ ...base, fields: [...base.fields, { ...field, permlevel: MAX_PERMLEVEL + 1 }] })).toThrow(/permlevel/);
   });
 
   it('rejects references to unknown fields', () => {

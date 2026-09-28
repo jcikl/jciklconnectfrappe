@@ -50,7 +50,8 @@ export function permittedLevels(meta: DocTypeMeta, user: UserContext, action: 'r
   for (const row of meta.permissions) {
     if (row[action] === true && rowMatches(row, roles, user, doc)) levels.add(row.permlevel ?? 0);
   }
-  return levels;
+  // Frappe semantics: higher permlevels only apply on top of level-0 access for the same action.
+  return levels.has(0) ? levels : new Set<number>();
 }
 
 export function readableFields(meta: DocTypeMeta, fields: readonly FieldDef[], user: UserContext, doc: DocContext): FieldDef[] {

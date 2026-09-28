@@ -37,4 +37,9 @@ describe('naming series', () => {
     expect(() => formatSeriesName('A-.##', d, 0)).toThrow(RangeError);
     expect(() => formatSeriesName('A-.##', d, 1.5)).toThrow(RangeError);
   });
+
+  it('rejects patterns containing "/" (unsafe in a series/{prefix} doc id)', () => {
+    expect(() => parseSeriesPattern('MEM/.YYYY.-.#####')).toThrow(MetaError);
+    expect(() => formatSeriesName('A/B-.##', d, 1)).toThrow(MetaError);
+  });
 });
