@@ -76,7 +76,7 @@ export function isCapped(docs: readonly unknown[], max = VERSIONS_LIMIT): boolea
 
 /**
  * A document's version entries (newest first, at most `max`). `orgFilters` come from filtersForDoc, so the
- * query carries the doctype, docId and org constraints the versions rule needs. No composite index required.
+ * query carries the doctype, docId and org constraints the versions rule needs. Ordered newest-first, so production needs the composite indexes in firestore.indexes.json (one per filter shape).
  */
 export function createVersionsStore(
   db: Firestore,
