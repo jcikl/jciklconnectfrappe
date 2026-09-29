@@ -6,7 +6,7 @@ export default defineConfig({
       {
         test: {
           name: 'unit',
-          include: ['packages/core/src/**/*.test.ts', 'packages/doctypes/src/**/*.test.ts', 'tools/**/*.test.mjs'],
+          include: ['packages/core/src/**/*.test.ts', 'packages/doctypes/src/**/*.test.ts', 'packages/client/src/**/*.test.ts', 'tools/**/*.test.mjs'],
         },
       },
       {
