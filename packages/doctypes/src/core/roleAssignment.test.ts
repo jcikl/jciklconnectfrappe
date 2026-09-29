@@ -1,7 +1,7 @@
 import type { HookContext } from '@jci/core';
 import { describe, expect, it } from 'vitest';
 import { RoleAssignment, roleAssignmentController } from './roleAssignment';
-import { hookContext, PJ_PATH, systemManager, userWith } from './testContext';
+import { hookContext, KL_PATH, PJ_PATH, systemManager, userWith } from './testContext';
 
 const pjAdmin = userWith(['OrgAdmin', 'jci-pj', false]);
 const nationalAdmin = userWith(['OrgAdmin', 'jci-malaysia', true]);
@@ -38,6 +38,37 @@ describe('RoleAssignment', () => {
     await expect(
       validate({ uid: 'x', role: 'Member', withDescendants: true }, { user: nationalAdmin, orgPath: null }),
     ).rejects.toMatchObject({ field: 'withDescendants' });
+  });
+
+  describe('System Manager scope', () => {
+    const MY_PATH = KL_PATH.slice(0, 3);
+    const exactMySm = userWith(['SystemManager', 'jci-malaysia', false]);
+    const klSm = userWith(['SystemManager', 'jci-kl', false]);
+    const hqSubtreeSm = userWith(['SystemManager', 'jci', true]);
+
+    it('stops an exact System Manager granting subtree roles at their own org', async () => {
+      const at = { user: exactMySm, orgPath: MY_PATH };
+      await expect(validate({ uid: 'x', role: 'SystemManager', withDescendants: true }, at)).rejects.toMatchObject({
+        field: 'withDescendants',
+      });
+      await expect(validate({ uid: 'x', role: 'Member', withDescendants: true }, at)).rejects.toMatchObject({ field: 'withDescendants' });
+      await expect(validate({ uid: 'x', role: 'SystemManager' }, at)).resolves.toBeUndefined();
+    });
+
+    it('counts a System Manager grant only where it applies', async () => {
+      const at = { user: klSm, orgPath: PJ_PATH };
+      await expect(validate({ uid: 'x', role: 'SystemManager' }, at)).rejects.toMatchObject({ field: 'role' });
+      await expect(beforeDelete({ uid: 'x', role: 'SystemManager' }, at)).rejects.toMatchObject({ field: 'role' });
+      await expect(validate({ uid: 'x', role: 'SystemManager' }, { user: systemManager, orgPath: null })).rejects.toMatchObject({
+        field: 'role',
+      });
+    });
+
+    it('lets an hq-subtree System Manager grant subtree roles anywhere', async () => {
+      const doc = { uid: 'x', role: 'SystemManager', withDescendants: true };
+      await expect(validate(doc, { user: hqSubtreeSm, orgPath: MY_PATH })).resolves.toBeUndefined();
+      await expect(beforeDelete(doc, { user: hqSubtreeSm, orgPath: MY_PATH })).resolves.toBeUndefined();
+    });
   });
 
   describe('existing subtree grants', () => {

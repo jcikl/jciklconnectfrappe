@@ -38,6 +38,17 @@ describe('CustomField', () => {
     await expect(validate(onGlobal, { user: systemManager })).resolves.toBeUndefined();
   });
 
+  it('needs a System Manager over the whole tree for global DocTypes', async () => {
+    const onGlobal = { ...motto, targetDocType: 'CustomField', fieldname: 'note' };
+    const klSm = userWith(['SystemManager', 'jci-kl', true]);
+    for (const user of [klSm, userWith(['SystemManager', 'jci-malaysia', true]), userWith(['SystemManager', 'jci', false])]) {
+      await expect(validate(onGlobal, { user })).rejects.toMatchObject({ field: 'org' });
+    }
+    await expect(validate(onGlobal, { user: userWith(['SystemManager', 'jci', true]) })).resolves.toBeUndefined();
+    // Org-scoped targets still accept a System Manager over the referenced org.
+    await expect(validate(motto, { user: klSm })).resolves.toBeUndefined();
+  });
+
   it('keeps the identity and type fixed after creation', async () => {
     const update = { isNew: false, before: motto };
     await expect(validate({ ...motto, fieldtype: 'Text' }, update)).rejects.toMatchObject({ field: 'fieldtype' });

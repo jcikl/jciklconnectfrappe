@@ -19,11 +19,18 @@ export const RoleAssignment = defineDocType({
   ],
 });
 
-const isSystemManager = (ctx: HookContext): boolean => ctx.user.grants.some((g) => g.role === 'SystemManager');
+/** True when a System Manager grant applies to this org; a missing orgPath is covered by nothing. */
+const isSystemManager = (ctx: HookContext): boolean =>
+  ctx.user.grants.some((g) => g.role === 'SystemManager' && grantApplies(g, ctx.orgPath ?? []));
 
-/** True when the caller holds a subtree OrgAdmin grant covering this org; a missing orgPath is covered by nothing. */
+/**
+ * True when the caller holds a subtree System Manager or OrgAdmin grant covering this org; a missing orgPath
+ * is covered by nothing. An exact grant, even a System Manager one, cannot hand out or change subtree grants.
+ */
 const coversSubtree = (ctx: HookContext): boolean =>
-  ctx.user.grants.some((g) => g.role === 'OrgAdmin' && g.withDescendants && grantApplies(g, ctx.orgPath ?? []));
+  ctx.user.grants.some(
+    (g) => (g.role === 'SystemManager' || g.role === 'OrgAdmin') && g.withDescendants && grantApplies(g, ctx.orgPath ?? []),
+  );
 
 export const roleAssignmentController: Controller = {
   validate(ctx) {
@@ -31,11 +38,11 @@ export const roleAssignmentController: Controller = {
     if (touchesSystemManager && !isSystemManager(ctx)) {
       throw new ValidationError('Only a System Manager can grant or change the System Manager role', 'role');
     }
-    if (ctx.doc.withDescendants === true && !isSystemManager(ctx) && !coversSubtree(ctx)) {
+    if (ctx.doc.withDescendants === true && !coversSubtree(ctx)) {
       throw new ValidationError('You can only grant a role over child organisations that you administer', 'withDescendants');
     }
     // Narrower admins must not alter or downgrade an existing subtree grant.
-    if (ctx.before?.withDescendants === true && !isSystemManager(ctx) && !coversSubtree(ctx)) {
+    if (ctx.before?.withDescendants === true && !coversSubtree(ctx)) {
       throw new ValidationError('You can only change a role over child organisations that you administer', 'withDescendants');
     }
   },
@@ -43,7 +50,7 @@ export const roleAssignmentController: Controller = {
     if (ctx.before?.role === 'SystemManager' && !isSystemManager(ctx)) {
       throw new ValidationError('Only a System Manager can remove the System Manager role', 'role');
     }
-    if (ctx.before?.withDescendants === true && !isSystemManager(ctx) && !coversSubtree(ctx)) {
+    if (ctx.before?.withDescendants === true && !coversSubtree(ctx)) {
       throw new ValidationError('You can only remove a role over child organisations that you administer', 'withDescendants');
     }
   },

@@ -53,9 +53,14 @@ const FIXED_AFTER_CREATE = ['targetDocType', 'fieldname', 'fieldtype', 'org'] as
 async function assertAdministers(ctx: HookContext, orgId: unknown, targetIsOrgScoped: boolean): Promise<void> {
   const org = typeof orgId === 'string' ? await ctx.get(ORGANIZATION_DOCTYPE, orgId) : null;
   if (!org || !Array.isArray(org.orgPath)) throw new ValidationError('Unknown organisation', 'org');
-  const roles = effectiveRoles(ctx.user, { orgPath: org.orgPath as string[] });
-  if (roles.has('SystemManager')) return;
-  if (targetIsOrgScoped && roles.has('OrgAdmin')) return;
+  const orgPath = org.orgPath as string[];
+  if (targetIsOrgScoped) {
+    const roles = effectiveRoles(ctx.user, { orgPath });
+    if (roles.has('SystemManager') || roles.has('OrgAdmin')) return;
+  } else if (ctx.user.grants.some((g) => g.role === 'SystemManager' && g.withDescendants && g.orgId === orgPath[0])) {
+    // A field on a global DocType applies platform-wide, so it needs a System Manager over the whole tree.
+    return;
+  }
   throw new ValidationError(
     targetIsOrgScoped ? 'You must administer this organisation' : 'Only a System Manager can add fields to this DocType',
     'org',
