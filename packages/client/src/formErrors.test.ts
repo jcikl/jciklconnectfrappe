@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiRequestError } from './api';
-import { formErrorsFrom, formErrorsFromIssues } from './formErrors';
+import { formErrorsFrom, formErrorsFromIssues, withVisibleFields } from './formErrors';
 
 describe('formErrorsFromIssues', () => {
   it('maps issue paths to field keys, keeping the first message per field', () => {
@@ -52,5 +52,50 @@ describe('formErrorsFrom', () => {
   it('shows other failures on the form', () => {
     expect(formErrorsFrom(new ApiRequestError(403, 'forbidden', 'You cannot edit this Person'))).toEqual({ fields: {}, form: 'You cannot edit this Person' });
     expect(formErrorsFrom(new Error('boom'))).toEqual({ fields: {}, form: 'Something went wrong. Please try again.' });
+  });
+});
+
+describe('withVisibleFields', () => {
+  const visible = new Set(['title', 'custom.motto']);
+  const labels = { title: 'Name', secret: 'Secret', 'custom.hiddenOne': 'Hidden one' };
+
+  it('keeps errors on visible fields untouched', () => {
+    const errors = { fields: { title: 'Required' }, form: null };
+    expect(withVisibleFields(errors, visible, labels)).toEqual(errors);
+  });
+
+  it('moves a bare custom issue into the form message', () => {
+    const errors = formErrorsFromIssues([{ path: 'custom', message: 'Required' }]);
+    const r = withVisibleFields(errors, visible, labels);
+    expect(r.fields).toEqual({});
+    expect(r.form).toBe('custom: Required');
+  });
+
+  it('moves a hidden-field issue, labelled when the label is known', () => {
+    const r = withVisibleFields({ fields: { 'custom.hiddenOne': 'Required' }, form: null }, visible, labels);
+    expect(r).toEqual({ fields: {}, form: 'Hidden one: Required' });
+  });
+
+  it('splits a mix of visible and hidden issues and joins several hidden messages', () => {
+    const r = withVisibleFields({ fields: { title: 'Required', secret: 'Bad', other: 'Worse' }, form: null }, visible, labels);
+    expect(r.fields).toEqual({ title: 'Required' });
+    expect(r.form).toBe('Secret: Bad; other: Worse');
+  });
+
+  it('combines with an existing form message', () => {
+    const r = withVisibleFields({ fields: { secret: 'Bad' }, form: 'Unrecognized key' }, visible, labels);
+    expect(r.form).toBe('Unrecognized key; Secret: Bad');
+  });
+
+  it('never reads inherited keys', () => {
+    const r = withVisibleFields({ fields: Object.assign(Object.create(null), { constructor: 'Bad' }) as Record<string, string>, form: null }, new Set(), {});
+    expect(r.form).toBe('constructor: Bad');
+  });
+});
+
+describe('formErrorsFrom fallback', () => {
+  it('keeps the server message when an invalid response carries no usable issues', () => {
+    const err = new ApiRequestError(422, 'invalid', 'Validation failed', { issues: [] });
+    expect(formErrorsFrom(err).form).toBe('Validation failed');
   });
 });

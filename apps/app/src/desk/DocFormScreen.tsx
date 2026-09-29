@@ -1,6 +1,6 @@
 import { isCapped, timelineEntries, VERSIONS_LIMIT, type QueryDoc } from '@jci/client';
 import { useVersions } from '@jci/client/react';
-import { docTypeLabel, filtersForDoc, type DocTypeMeta, type FormField } from '@jci/core';
+import { docTypeLabel, filtersForDoc, type DocTypeMeta } from '@jci/core';
 import { DocForm, EmptyState, ErrorState, Heading, Page, Spinner, Stack, Text, Timeline } from '@jci/ui';
 import { useDesk } from './DeskContext';
 import { docTitle } from './docTypes';
@@ -43,18 +43,17 @@ export function DocFormScreen({ meta, id }: { meta: DocTypeMeta; id: string | nu
         submitting={form.submitting}
         renderField={renderDeskField}
       />
-      {form.stored && meta.trackChanges ? <DocTimeline meta={meta} stored={form.stored} fields={form.fields} /> : null}
+      {form.stored && meta.trackChanges ? <DocTimeline meta={meta} stored={form.stored} labels={form.historyLabels} /> : null}
     </Page>
   );
 }
 
-function DocTimeline({ meta, stored, fields }: { meta: DocTypeMeta; stored: QueryDoc; fields: FormField[] }) {
+function DocTimeline({ meta, stored, labels }: { meta: DocTypeMeta; stored: QueryDoc; labels: Record<string, string> }) {
   const { user } = useDesk();
   const filters = filtersForDoc(meta, user, stored.data);
   const versions = useVersions(meta.name, stored.id, filters);
   if (versions.status === 'loading') return <Spinner label="Loading history" />;
   if (versions.status === 'error') return <ErrorState title="Could not load the history" message={versions.message} />;
-  const labels = Object.fromEntries(fields.map((f) => [f.key, f.def.label]));
   const items = timelineEntries(versions.docs, labels).map((e) => ({
     id: e.id,
     title: `${ACTION[e.action] ?? 'Changed'} by ${e.by || 'unknown'}`,

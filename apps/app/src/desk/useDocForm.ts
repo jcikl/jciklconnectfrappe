@@ -1,8 +1,9 @@
-import { formErrorsFrom, formErrorsFromIssues, type FormErrors, type QueryDoc } from '@jci/client';
+import { formErrorsFrom, formErrorsFromIssues, withVisibleFields, type FormErrors, type QueryDoc } from '@jci/client';
 import { useClient, useCustomFields, useDocument } from '@jci/client/react';
 import {
   CUSTOM_FIELD_DOCTYPE,
   customFieldFromDoc,
+  fieldKey,
   docTypeLabel,
   formFields,
   formPayload,
@@ -36,6 +37,8 @@ export type DocFormState =
       fields: FormField[];
       sections: FormSection[];
       values: FormValues;
+      /** Labels of every field the caller may read, hidden ones included, keyed like form values. For the Timeline. */
+      historyLabels: Record<string, string>;
       errors: FormErrors;
       submitting: boolean;
       setValue: (key: string, value: unknown) => void;
@@ -109,6 +112,14 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
   if (!isNew && !access.canRead) return { status: 'unavailable', title: 'Not allowed', message: `You can't see this ${label}.` };
 
   const current = values;
+  const visibleSections = sectionsOf(visibleFormFields(fields, current));
+  const shownKeys = new Set(visibleSections.flatMap((sec) => sec.fields.map((f) => f.key)));
+  const historyLabels = Object.fromEntries(access.readableFields.map((d) => [fieldKey(d), d.label]));
+  const errorLabels = { ...historyLabels, ...Object.fromEntries(fields.map((f) => [f.key, f.def.label])) };
+  const onlyShown = (e: FormErrors): FormErrors => {
+    const r = withVisibleFields(e, shownKeys, errorLabels);
+    return r.form === null && Object.keys(r.fields).length === 0 ? { fields: {}, form: 'Could not save. Please try again.' } : r;
+  };
   const before = baseline;
   async function save() {
     const patch = formPayload(fields, current, before);
@@ -119,7 +130,7 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
     // The same schema the server uses, so users see its messages before the round trip.
     const check = access!.schema(isNew ? 'create' : 'update').safeParse(patch);
     if (!check.success) {
-      setErrors(formErrorsFromIssues(check.error.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message }))));
+      setErrors(onlyShown(formErrorsFromIssues(check.error.issues.map((i) => ({ path: i.path.map(String).join('.'), message: i.message })))));
       return;
     }
     setSubmitting(true);
@@ -144,7 +155,7 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
         });
       }
     } catch (err) {
-      setErrors(formErrorsFrom(err));
+      setErrors(onlyShown(formErrorsFrom(err)));
     } finally {
       setSubmitting(false);
     }
@@ -156,8 +167,9 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
     isNew,
     stored,
     fields,
-    sections: sectionsOf(visibleFormFields(fields, current)),
+    sections: visibleSections,
     values: current,
+    historyLabels,
     errors,
     submitting,
     setValue: (key, value) => {

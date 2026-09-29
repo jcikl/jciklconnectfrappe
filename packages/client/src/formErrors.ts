@@ -58,3 +58,19 @@ export function formErrorsFrom(err: unknown): FormErrors {
   if (err.code === 'duplicate') return { fields: markFields(details.fields, 'Another record already uses this value.'), form: null };
   return { fields: {}, form: err.message };
 }
+
+/**
+ * Errors on fields the form does not show (the bare `custom` path, dependsOn-hidden, hidden or unreadable fields)
+ * would otherwise be lost. They move into the form-level message, labelled by field where a label is known.
+ */
+export function withVisibleFields(errors: FormErrors, visibleKeys: ReadonlySet<string>, labels: Readonly<Record<string, string>> = {}): FormErrors {
+  const fields: Record<string, string> = Object.create(null) as Record<string, string>;
+  const moved: string[] = [];
+  for (const key of Object.keys(errors.fields)) {
+    const message = errors.fields[key]!;
+    if (visibleKeys.has(key)) fields[key] = message;
+    else moved.push(`${Object.hasOwn(labels, key) ? labels[key]! : key}: ${message}`);
+  }
+  if (moved.length === 0) return errors;
+  return { fields, form: [...(errors.form ? [errors.form] : []), ...moved].join('; ') };
+}
