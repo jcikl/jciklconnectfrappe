@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Redirect, useRouter } from 'expo-router';
-import { Badge, Box, Button, Card, EmptyState, ErrorState, Heading, Input, ListItem, Screen, Spinner, Stack, Text, useTheme } from '@jci/ui';
+import { Badge, Box, Button, Card, Checkbox, EmptyState, ErrorState, Heading, Input, LinkPicker, ListItem, Screen, Select, Spinner, Stack, Text, useTheme } from '@jci/ui';
 
 export default function UiGallery() {
   const router = useRouter();
@@ -8,6 +8,9 @@ export default function UiGallery() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [picked, setPicked] = useState('kl');
+  const [checked, setChecked] = useState(false);
+  const [level, setLevel] = useState<string | null>(null);
+  const [org, setOrg] = useState<string | null>('jci-kl');
 
   if (!__DEV__) return <Redirect href="/" />;
 
@@ -91,6 +94,29 @@ export default function UiGallery() {
         <ListItem title="JCI Kuala Lumpur" subtitle="Local" selected={picked === 'kl'} onPress={() => setPicked('kl')} />
         <ListItem title="JCI Malaysia" subtitle="Includes child organisations" selected={picked === 'my'} onPress={() => setPicked('my')} />
         <ListItem title="Read-only row" subtitle="No onPress" />
+      </Card>
+
+      <Card title="Pickers">
+        <Checkbox label="Includes child organisations" checked={checked} onChange={setChecked} hint="Grants the role below this org too" />
+        <Select
+          label="Level"
+          value={level}
+          onChange={setLevel}
+          allowClear
+          options={[
+            { value: 'national', label: 'National' },
+            { value: 'local', label: 'Local' },
+          ]}
+        />
+        <LinkPicker
+          label="Organisation"
+          value={org}
+          onChange={setOrg}
+          options={[
+            { value: 'jci-kl', label: 'JCI Kuala Lumpur' },
+            { value: 'jci-pj', label: 'JCI Petaling Jaya', description: 'Selangor' },
+          ]}
+        />
       </Card>
 
       <Card title="Empty state">
