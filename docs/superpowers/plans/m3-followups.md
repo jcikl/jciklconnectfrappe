@@ -27,7 +27,7 @@
 ## Carried from M3a reviews
 - **Access and list filters.**
   - Before the first `ifOwner` DocType: prove the global-owner and subtree-owner filter shapes against the emulator rules. Today only exact-scope owner reads are proven.
-  - Tests cover only the first scope option, and have no negative rule cases for list filters.
+  - Tests cover only the first scope option, and negative rule cases are few (no denied subtree or global shapes).
   - A parent-org subtree grant is ignored when the scope is a child org. This under-lists, which is safe, but it is surprising.
   - `docTypeLabel` does not keep acronyms.
 - **API client (before M3b).**

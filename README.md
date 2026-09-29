@@ -30,6 +30,7 @@ Design: `docs/superpowers/specs/2026-09-29-jci-platform-core-member-crm-design.m
 4. `npm run build:web && npm run dev:api`. The API is then at `http://localhost:8888/api/resource/:doctype[/:id]`.
    - `dev:api` runs `npm run build:functions` (esbuild bundles `netlify/functions/*.ts` together with `@jci/core` and `@jci/doctypes` into `netlify/dist`, the functions directory in `netlify.toml`) and then `netlify dev --filter @jci/functions`. The filter is needed because the repo has several workspaces. Add `--offline` to skip the Netlify login: `npm run dev:api -- --offline`.
    - The bundle is not rebuilt on change: rerun `npm run dev:api` after editing server code.
+   - The web page served at :8888 is a production build, so it shows "This build is not configured" unless `apps/app/.env` sets `EXPO_PUBLIC_USE_EMULATORS=true`.
    - Why the prebuild: Netlify bundles v2 functions with NFT and keeps every package import external, so the raw TypeScript workspace packages would otherwise be loaded as `.ts` at runtime.
 
 ## Running the app locally
