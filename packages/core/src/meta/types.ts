@@ -76,7 +76,9 @@ export interface DocPerm {
 export type Naming =
   | { kind: 'autoId' }
   | { kind: 'series'; pattern: string }
-  | { kind: 'field'; field: string };
+  | { kind: 'field'; field: string }
+  /** Id = the values of several reqd Data/Select fields joined with '.'. */
+  | { kind: 'fields'; fields: readonly string[] };
 
 export interface DocTypeInput {
   name: string;

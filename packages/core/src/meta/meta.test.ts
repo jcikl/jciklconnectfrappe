@@ -96,6 +96,52 @@ describe('defineDocType', () => {
   });
 });
 
+describe('permission rows, naming and collections', () => {
+  it('rejects unknown roles and bad permlevels in permission rows', () => {
+    expect(() => defineDocType({ ...personInput(), permissions: [{ role: 'Admin' as never, read: true }] })).toThrow(/unknown role/);
+    expect(() =>
+      defineDocType({ ...personInput(), permissions: [{ role: 'Member', permlevel: MAX_PERMLEVEL + 1, read: true }] }),
+    ).toThrow(/permlevel/);
+    expect(() => defineDocType({ ...personInput(), permissions: [{ role: 'Member', permlevel: 1, create: true }] })).toThrow(
+      /permlevel 0/,
+    );
+  });
+
+  it('requires naming fields to be reqd Data or Select fields', () => {
+    expect(() => defineDocType({ ...personInput(), naming: { kind: 'field', field: 'email' } })).toThrow(/reqd/);
+    expect(defineDocType({ ...personInput(), naming: { kind: 'field', field: 'fullName' } }).naming).toEqual({
+      kind: 'field',
+      field: 'fullName',
+    });
+    expect(() => defineDocType({ ...personInput(), naming: { kind: 'fields', fields: [] } })).toThrow(/at least one/);
+    const m = defineDocType({
+      ...personInput(),
+      fields: [...personInput().fields, { fieldname: 'code', label: 'Code', fieldtype: 'Data', reqd: true }],
+      naming: { kind: 'fields', fields: ['fullName', 'code'] },
+    });
+    expect(m.naming).toEqual({ kind: 'fields', fields: ['fullName', 'code'] });
+    expect(Object.isFrozen((m.naming as { fields: readonly string[] }).fields)).toBe(true);
+  });
+
+  it('freezes nested field properties', () => {
+    const m = defineDocType(personInput());
+    const gender = m.fields.find((f) => f.fieldname === 'gender')!;
+    expect(Object.isFrozen(gender.options)).toBe(true);
+  });
+
+  it('requires a camelCase collection name', () => {
+    expect(() => defineDocType({ ...personInput(), collection: 'people/x' })).toThrow(/collection/);
+    expect(() => defineDocType({ ...personInput(), collection: 'People' })).toThrow(/collection/);
+  });
+
+  it('rejects duplicate and reserved collection names in a registry', () => {
+    const a = defineDocType(personInput());
+    const b = defineDocType({ ...personInput(), name: 'Contact' });
+    expect(() => createRegistry([a, b])).toThrow(/collection "persons"/);
+    expect(() => createRegistry([defineDocType({ ...personInput(), collection: 'versions' })])).toThrow(/reserved/);
+  });
+});
+
 describe('createRegistry', () => {
   const org = defineDocType({ name: 'Organization', module: 'core', collection: 'organizations', fields: [{ fieldname: 'orgName', label: 'Name', fieldtype: 'Data' }] });
   const row = defineDocType({ name: 'HistoryRow', module: 'm', isChild: true, fields: [{ fieldname: 'year', label: 'Year', fieldtype: 'Int' }] });

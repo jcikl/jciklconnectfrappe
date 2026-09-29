@@ -12,6 +12,18 @@ export interface BuildSchemaOptions {
 
 const hasAtMostTwoDecimals = (v: number): boolean => Math.abs(Math.round(v * 100) - v * 100) < 1e-6;
 
+const childSchemas = new WeakMap<DocTypeMeta, z.ZodType>();
+
+/** Child rows have no custom fields and are always complete, so one schema per child DocType is enough. */
+function childRowSchema(child: DocTypeMeta, resolveChild: (name: string) => DocTypeMeta): z.ZodType {
+  let s = childSchemas.get(child);
+  if (!s) {
+    s = buildSchema(child, { resolveChild, mode: 'create' });
+    childSchemas.set(child, s);
+  }
+  return s;
+}
+
 function baseSchema(f: FieldDef, opts: BuildSchemaOptions): z.ZodType {
   switch (f.fieldtype) {
     case 'Data': {
@@ -35,7 +47,7 @@ function baseSchema(f: FieldDef, opts: BuildSchemaOptions): z.ZodType {
     case 'Check':
       return z.boolean();
     case 'Select':
-      return z.enum(f.options as unknown as [string, ...string[]]);
+      return z.literal(f.options!);
     case 'Link':
       return z.string().min(1);
     case 'AttachImage':
@@ -44,8 +56,7 @@ function baseSchema(f: FieldDef, opts: BuildSchemaOptions): z.ZodType {
       return z.record(z.string(), z.unknown());
     case 'Table': {
       if (!opts.resolveChild) throw new MetaError(`Table field "${f.fieldname}" needs resolveChild`);
-      const child = opts.resolveChild(f.childDocType!);
-      return z.array(buildSchema(child, { resolveChild: opts.resolveChild, mode: 'create' }));
+      return z.array(childRowSchema(opts.resolveChild(f.childDocType!), opts.resolveChild));
     }
   }
 }

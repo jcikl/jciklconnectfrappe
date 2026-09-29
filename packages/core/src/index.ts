@@ -1,4 +1,5 @@
 export * from './errors';
+export * from './collections';
 export * from './naming/series';
 export * from './meta/types';
 export * from './meta/defineDocType';
