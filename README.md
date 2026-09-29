@@ -47,14 +47,18 @@ Saving (M3b) goes through `/api/resource`, so run `npm run dev:api` alongside wh
 
 If `npm run typecheck` rejects a new route, delete `apps/app/.expo/types` or run `npx expo start` once; the typed-route file is generated locally and ignored by git.
 
-The app reads these `EXPO_PUBLIC_*` variables:
-- `EXPO_PUBLIC_USE_EMULATORS`: set it to `false` to use a real Firebase project.
+The app reads these `EXPO_PUBLIC_*` variables. Put them in `apps/app/.env`: Expo does not read the root `.env`, which is only for the API.
+- `EXPO_PUBLIC_USE_EMULATORS`: `true` or `false` overrides the default (on in dev, off in production builds).
 - `EXPO_PUBLIC_FIREBASE_PROJECT_ID` and `EXPO_PUBLIC_FIREBASE_API_KEY`
-- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` and `EXPO_PUBLIC_FIREBASE_APP_ID`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` (default `<projectId>.firebaseapp.com`) and `EXPO_PUBLIC_FIREBASE_APP_ID`
 - `EXPO_PUBLIC_EMULATOR_HOST`
 - `EXPO_PUBLIC_API_BASE_URL`
 
-The defaults target the `demo-jci` emulators.
+In dev (`expo start`) the defaults target the `demo-jci` emulators and the API on port 8888.
+
+Production builds (`npm run build:web`, EAS builds) turn the emulators off:
+- The Firebase project id and API key are then required. Without them the build still succeeds, but the app shows "This build is not configured" instead of starting.
+- On web the API defaults to the same origin, where the Netlify function lives. A native build must set `EXPO_PUBLIC_API_BASE_URL`.
 
 ## How writes work
 

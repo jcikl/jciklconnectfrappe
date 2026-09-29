@@ -13,11 +13,14 @@ export function DeskFrame({ uid, email }: { uid: string; email: string | null })
   const access = useAccess(uid);
   const router = useRouter();
   const pathname = usePathname();
+  // Also offered while access loads or fails, so an offline restart never traps the user.
+  const signOut = <Button label="Sign out" variant="secondary" size="sm" onPress={() => signOutUser(client)} />;
 
   if (access.status === 'loading') {
     return (
       <Screen>
         <Spinner label="Loading your access" />
+        {signOut}
       </Screen>
     );
   }
@@ -25,6 +28,7 @@ export function DeskFrame({ uid, email }: { uid: string; email: string | null })
     return (
       <Screen>
         <ErrorState title="Could not load your access" message={access.message} />
+        {signOut}
       </Screen>
     );
   }
@@ -43,7 +47,7 @@ export function DeskFrame({ uid, email }: { uid: string; email: string | null })
             <Text variant="caption" tone="muted">
               {email ?? uid}
             </Text>
-            <Button label="Sign out" variant="secondary" size="sm" onPress={() => signOutUser(client)} />
+            {signOut}
           </>
         }
       >
