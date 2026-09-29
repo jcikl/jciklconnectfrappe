@@ -55,3 +55,18 @@
   - Google sign-in errors appear under the Password field. Show a form-level message instead.
   - A deep link opened while signed out goes to `/desk` after sign-in instead of its target, and the scope is not kept in the URL.
   - The Desk sign-out promise is unhandled, and the list `ErrorState` has no retry.
+
+## Deferred from M3b
+- **Delete** is not in the Desk yet (the API supports it). Add it with a confirmation step.
+- **Tabs** (`FieldDef.tab`) are ignored; only sections group fields.
+- **Date and Datetime** are text inputs with a format hint. **AttachImage** is an image URL. Native pickers and upload come later.
+- **No DocType has a Table field yet.** `ChildTable` is covered by unit tests and `/gallery-fields` only; exercise it end-to-end when M4 adds one.
+- **Concurrent edits:**
+  - The form keeps the values it loaded. A change saved elsewhere meanwhile is only noticed through the diff: fields the user did not touch are not sent, and fields they did touch overwrite it.
+  - Detecting conflicts needs a version check in the API.
+- **After a remote change** the form keeps showing the value it loaded, with no indicator; only the heading reflects the new title.
+- **No save confirmation.** A successful update shows nothing, and a create by a role that cannot read the result returns to the list without a message.
+- **Link pickers** list up to `LIST_LIMIT` documents of the target in the current scope, with no server-side search.
+- **Creating an Organization** checks create permission against the scope (parent) org. An admin with an exact grant at the parent sees **New** but the server refuses; the form shows that message.
+- **The `/desk/[doctype]/new` route** shadows a document whose id is `new`.
+- **Invalid custom field definitions** make the form show "Could not load the form" with the validation message, instead of silently dropping the field.
