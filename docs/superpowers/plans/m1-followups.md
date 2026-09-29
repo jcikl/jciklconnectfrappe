@@ -1,5 +1,9 @@
 # M1 follow-ups (carry into the M2 plan)
 
+> **Status after M2:**
+> - Done: the lint deep subpaths, the dark-mode placeholder test, `resolveDocAccess`, the `orgScoped: false` decision (roles held anywhere), server-set `ownerPersonId` and `orgPath`, child-table field locks, `DocPerm` runtime validation, memoised child schemas, the `z.enum` cast, the deep `defineDocType` freeze, and the `naming.kind: 'field'` reqd check.
+> - Still open: everything under "Known lint limits", and the "Minor" items other than the two just listed.
+
 These are the items the M1 final review deferred. The first two belong in the first M2 commit.
 
 ## Should fix early in M2

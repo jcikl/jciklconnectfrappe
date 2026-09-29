@@ -1,0 +1,12 @@
+[build]
+  command = "npm run build:web"
+  publish = "apps/app/dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[dev]
+  framework = "#static"
+  publish = "apps/app/dist"
+  port = 8888
