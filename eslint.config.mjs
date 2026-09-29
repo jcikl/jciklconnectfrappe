@@ -10,6 +10,7 @@ export default defineConfig(
     ignores: [
       '**/node_modules/**',
       '**/.expo/**',
+      '**/.netlify/**',
       '**/dist/**',
       '**/web-build/**',
       '**/*.d.ts',

@@ -1,7 +1,8 @@
 # M2 follow-ups (carry into M3 and M4)
 
 ## Needed before deployment
-- **`netlify dev` cannot load the function yet.** `/api/resource` is a v2 function, so Netlify bundles it with NFT, not esbuild. NFT leaves `@jci/core` and `@jci/doctypes` as unbundled TypeScript, and Node fails with `Unknown file extension ".ts"`. Fix before deploying: build the workspace packages to JS, or bundle the function with esbuild in a build step. `NODE_OPTIONS=--import tsx` did not reach the function worker. The API was smoke-tested by calling the handler under `tsx` against the emulators instead.
+- **Set `NODE_OPTIONS=--experimental-require-module` for Functions in the Netlify UI.** Netlify runs functions on AWS Lambda, which disables `require()` of ES modules on Node 22. `firebase-admin/auth` loads `jwks-rsa`, which does `require('jose')` (ESM-only), so the function fails to load without it. `.env.example` sets it for `netlify dev`, which copies Lambda's behaviour. Recheck when the functions runtime moves to Node 24, where `require(esm)` is stable.
+- The deploy build runs `npm run build:web && npm run build:functions` (`netlify.toml`). `build:functions` bundles the workspace packages into `netlify/dist`; this was checked with a local zip-it-and-ship-it run, not a real deploy.
 
 ## Needed by M4 (membership DocTypes)
 - **Firestore rules cannot hide fields.**

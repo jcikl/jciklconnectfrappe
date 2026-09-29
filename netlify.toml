@@ -1,10 +1,12 @@
 [build]
-  command = "npm run build:web"
+  command = "npm run build:web && npm run build:functions"
   publish = "apps/app/dist"
 
 [functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+  # Built by `npm run build:functions` from netlify/functions (see scripts/build-functions.mts).
+  # Netlify always bundles v2 functions with NFT and keeps every package import external, so the
+  # TypeScript workspace packages (@jci/core, @jci/doctypes) have to be bundled in beforehand.
+  directory = "netlify/dist"
 
 [dev]
   framework = "#static"
