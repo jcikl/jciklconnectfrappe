@@ -13,7 +13,7 @@
     "test": "npm run test:node && npm run test:ui",
     "test:node": "vitest run --project unit",
     "test:ui": "npm test -w @jci/ui",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/doctypes --noEmit && tsc -p packages/ui --noEmit && tsc -p apps/app --noEmit && tsc -p tsconfig.server.json --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/doctypes --noEmit && tsc -p packages/client --noEmit && tsc -p packages/ui --noEmit && tsc -p apps/app --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint .",
     "check": "npm run lint && npm run typecheck && npm test",
     "build:web": "npm run export:web -w @jci/app",
@@ -21,7 +21,7 @@
     "dev:api": "npm run build:functions && netlify dev --filter @jci/functions",
     "gen:rules": "tsx scripts/gen-rules.mts",
     "seed:dev": "tsx scripts/seed-dev.mts",
-    "test:emulator": "firebase emulators:exec --only auth,firestore \"vitest run --project emulator\"",
+    "test:emulator": "firebase emulators:exec --only auth,firestore \"vitest run --project emulator --no-file-parallelism\"",
     "emulators": "firebase emulators:start --only auth,firestore"
   },
   "devDependencies": {

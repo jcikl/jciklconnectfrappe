@@ -1,8 +1,9 @@
 import { useAuthState } from '@jci/client/react';
 import { Redirect } from 'expo-router';
 import { Screen, Spinner } from '@jci/ui';
+import { DeskFrame } from '../../src/desk/DeskFrame';
 
-export default function Index() {
+export default function DeskLayout() {
   const auth = useAuthState();
   if (auth.status === 'loading') {
     return (
@@ -11,5 +12,6 @@ export default function Index() {
       </Screen>
     );
   }
-  return <Redirect href={auth.status === 'signedIn' ? '/desk' : '/login'} />;
+  if (auth.status === 'signedOut') return <Redirect href="/login" />;
+  return <DeskFrame uid={auth.uid} email={auth.email} />;
 }

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Redirect } from 'expo-router';
-import { Badge, Box, Button, Card, EmptyState, Heading, Input, Screen, Stack, Text, useTheme } from '@jci/ui';
+import { Redirect, useRouter } from 'expo-router';
+import { Badge, Box, Button, Card, EmptyState, ErrorState, Heading, Input, ListItem, Screen, Spinner, Stack, Text, useTheme } from '@jci/ui';
 
 export default function UiGallery() {
+  const router = useRouter();
   const { scheme, toggle } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [picked, setPicked] = useState('kl');
 
   if (!__DEV__) return <Redirect href="/" />;
 
@@ -80,8 +82,26 @@ export default function UiGallery() {
         </Box>
       </Card>
 
+      <Card title="Feedback">
+        <Spinner label="Loading members" />
+        <ErrorState message="You don't have permission to see this list." onRetry={() => {}} />
+      </Card>
+
+      <Card title="List items">
+        <ListItem title="JCI Kuala Lumpur" subtitle="Local" selected={picked === 'kl'} onPress={() => setPicked('kl')} />
+        <ListItem title="JCI Malaysia" subtitle="Includes child organisations" selected={picked === 'my'} onPress={() => setPicked('my')} />
+        <ListItem title="Read-only row" subtitle="No onPress" />
+      </Card>
+
       <Card title="Empty state">
         <EmptyState title="No members yet" description="Members you add will appear here." actionLabel="Add member" onAction={() => {}} />
+      </Card>
+
+      <Card title="Layouts">
+        <Stack direction="row" gap="sm" wrap>
+          <Button label="AuthShell" variant="secondary" onPress={() => router.push('/gallery-auth-shell')} />
+          <Button label="DeskShell" variant="secondary" onPress={() => router.push('/gallery-desk-shell')} />
+        </Stack>
       </Card>
     </Screen>
   );
