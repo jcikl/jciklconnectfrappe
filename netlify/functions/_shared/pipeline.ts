@@ -17,8 +17,10 @@ import {
 } from '@jci/core';
 import { Timestamp, type Firestore, type Transaction } from 'firebase-admin/firestore';
 import { ApiError, invalid } from './errors';
+import { checkLinks } from './links';
 import { datePartsIn, isValidDocId, planId, type PendingWrite } from './naming';
 import { docRef, loadCustomFields, loadOrgPath, readDoc, serializeDoc } from './store';
+import { planUniques } from './unique';
 
 export interface EffectContext {
   db: Firestore;
@@ -208,6 +210,8 @@ export async function createDoc(
     const ctx = contextFor(tx, deps, { meta, user, isNew: true, id: planned.id, orgPath, before: null, doc: parsed });
     await runHooks(deps, ctx, 'save');
     const writes: PendingWrite[] = [...planned.writes];
+    await checkLinks(tx, deps, access.fields, null, ctx.doc);
+    writes.push(...(await planUniques(tx, deps.db, meta, access.fields, planned.id, null, ctx.doc)));
 
     const doc: StoredDoc = {
       ...ctx.doc,
@@ -265,6 +269,8 @@ export async function updateDoc(
     const changed = diffDocs(before, ctx.doc);
     if (changed.length === 0) return { before, doc: before, changed, access };
     const writes: PendingWrite[] = [];
+    await checkLinks(tx, deps, access.fields, before, ctx.doc);
+    writes.push(...(await planUniques(tx, deps.db, meta, access.fields, id, before, ctx.doc)));
 
     const doc: StoredDoc = { ...ctx.doc, ...system, updatedAt: at, updatedBy: user.uid };
     for (const write of writes) write(tx);
@@ -298,6 +304,7 @@ export async function deleteDoc(deps: PipelineDeps, user: UserContext, doctype: 
     const ctx = contextFor(tx, deps, { meta, user, isNew: false, id, orgPath, before, doc: split(before).fields });
     await runHooks(deps, ctx, 'delete');
     const writes: PendingWrite[] = [];
+    writes.push(...(await planUniques(tx, deps.db, meta, access.fields, id, before, {})));
 
     for (const write of writes) write(tx);
     tx.delete(ref);
