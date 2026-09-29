@@ -1,15 +1,19 @@
-import { signOutUser } from '@jci/client';
-import { useAuthState, useClient } from '@jci/client/react';
-import { Button, Heading, Screen, Text } from '@jci/ui';
+import { readableDocTypes } from '@jci/core';
+import { registry } from '@jci/doctypes';
+import { EmptyState, Heading, Page, Text } from '@jci/ui';
+import { useDesk } from '../../../src/desk/DeskContext';
 
 export default function DeskHome() {
-  const { client } = useClient();
-  const auth = useAuthState();
+  const { user } = useDesk();
+  const readable = readableDocTypes(registry.all(), user);
   return (
-    <Screen>
+    <Page>
       <Heading level={1}>Desk</Heading>
-      <Text tone="muted">{auth.status === 'signedIn' ? `Signed in as ${auth.email ?? auth.uid}` : ''}</Text>
-      <Button label="Sign out" variant="secondary" onPress={() => signOutUser(client)} />
-    </Screen>
+      {readable.length === 0 ? (
+        <EmptyState title="No access yet" description="Ask an administrator to give you a role." />
+      ) : (
+        <Text tone="muted">Choose what to work on from the menu.</Text>
+      )}
+    </Page>
   );
 }
