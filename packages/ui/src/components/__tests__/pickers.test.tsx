@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { PickerSheet } from '../PickerSheet';
 import { Checkbox } from '../Checkbox';
 import { LinkPicker } from '../LinkPicker';
 import { Select } from '../Select';
@@ -31,7 +32,49 @@ describe('Checkbox', () => {
   });
 });
 
+describe('Checkbox accessibility and error', () => {
+  it('draws a danger border on error and leaves the hint visible only', async () => {
+    await render(<Checkbox label="Active" checked={false} onChange={() => {}} error="Required" hint="Some hint" testID="cb" />);
+    expect(screen.getByTestId('cb-box').props.className).toContain('border-danger');
+    expect(screen.getByRole('checkbox', { name: 'Active' }).props.accessibilityHint).toBeUndefined();
+  });
+
+  it('shows the hint as visible text', async () => {
+    await render(<Checkbox label="Active" checked onChange={() => {}} hint="Some hint" />);
+    expect(screen.getByText('Some hint')).toBeTruthy();
+  });
+});
+
+describe('PickerSheet', () => {
+  it('has a non-accessible backdrop and closes on a tap outside', async () => {
+    const onClose = jest.fn();
+    await render(
+      <PickerSheet title="Pick" visible onClose={onClose}>
+        <></>
+      </PickerSheet>,
+    );
+    const backdrop = screen.getByTestId('picker-backdrop');
+    expect(backdrop.props.accessible).toBe(false);
+    await fireEvent.press(backdrop);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tap outside a Select closes it without a change', async () => {
+    const onChange = jest.fn();
+    await render(<Select label="Level" value={null} options={LEVELS} onChange={onChange} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Level' }));
+    await fireEvent.press(screen.getByTestId('picker-backdrop'));
+    expect(screen.queryByRole('button', { name: 'Area' })).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
 describe('Select', () => {
+  it('shows the raw value when it is not among the options', async () => {
+    await render(<Select label="Level" value="zone" options={LEVELS} onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Level' }).props.accessibilityValue).toEqual({ text: 'zone' });
+  });
+
   it('opens its options and reports the choice', async () => {
     const onChange = jest.fn();
     await render(<Select label="Level" value={null} options={LEVELS} onChange={onChange} testID="level" />);
@@ -67,6 +110,20 @@ describe('Select', () => {
 });
 
 describe('LinkPicker', () => {
+  it('allowClear chooses null', async () => {
+    const onChange = jest.fn();
+    await render(<LinkPicker label="Organisation" value="jci-kl" options={ORGS} onChange={onChange} allowClear />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Organisation' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'None' }));
+    expect(onChange).toHaveBeenCalledWith(null);
+  });
+
+  it('does not open when disabled', async () => {
+    await render(<LinkPicker label="Organisation" value={null} options={ORGS} onChange={() => {}} disabled />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Organisation' }));
+    expect(screen.queryByLabelText('Search')).toBeNull();
+  });
+
   it('searches the options and reports the chosen id', async () => {
     const onChange = jest.fn();
     await render(<LinkPicker label="Organisation" value="jci-kl" options={ORGS} onChange={onChange} />);

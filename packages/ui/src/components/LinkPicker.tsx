@@ -6,8 +6,8 @@ import { FieldMessage } from './FieldMessage';
 import { Input } from './Input';
 import { ListItem } from './ListItem';
 import { PickerSheet } from './PickerSheet';
-import { TRIGGER, TRIGGER_BORDER, TRIGGER_ERROR } from './Select';
 import { Spinner } from './Spinner';
+import { TRIGGER, TRIGGER_BORDER, TRIGGER_ERROR } from './triggerStyles';
 
 export interface LinkOption {
   value: string;

@@ -14,8 +14,11 @@ export interface CheckboxProps {
 }
 
 const FOCUS = 'web:focus-visible:outline-none web:focus-visible:ring-2 web:focus-visible:ring-focus dark:web:focus-visible:ring-focus-dark';
-const BOX_ON = 'border-primary bg-primary dark:border-primary-dark dark:bg-primary-dark';
-const BOX_OFF = 'border-border bg-surface dark:border-border-dark dark:bg-surface-dark';
+const BOX_ON = 'bg-primary dark:bg-primary-dark';
+const BOX_OFF = 'bg-surface dark:bg-surface-dark';
+const BORDER_ON = 'border-primary dark:border-primary-dark';
+const BORDER_OFF = 'border-border dark:border-border-dark';
+const BORDER_ERROR = 'border-danger dark:border-danger-dark';
 
 export function Checkbox({ label, checked, onChange, disabled = false, hint, error, testID }: CheckboxProps) {
   return (
@@ -24,13 +27,12 @@ export function Checkbox({ label, checked, onChange, disabled = false, hint, err
         testID={testID}
         accessibilityRole="checkbox"
         accessibilityLabel={label}
-        accessibilityHint={hint}
         accessibilityState={{ checked, disabled }}
         disabled={disabled}
         onPress={() => onChange(!checked)}
         className={cn('min-h-11 flex-row items-center gap-3 rounded-lg active:opacity-80', FOCUS, disabled && 'opacity-50')}
       >
-        <View className={cn('h-6 w-6 items-center justify-center rounded border-2', checked ? BOX_ON : BOX_OFF)}>
+        <View testID={testID ? `${testID}-box` : 'checkbox-box'} className={cn('h-6 w-6 items-center justify-center rounded border-2', checked ? BOX_ON : BOX_OFF, error ? BORDER_ERROR : checked ? BORDER_ON : BORDER_OFF)}>
           {checked ? <RNText className="text-sm font-bold text-on-primary dark:text-on-primary-dark">✓</RNText> : null}
         </View>
         <Text>{label}</Text>

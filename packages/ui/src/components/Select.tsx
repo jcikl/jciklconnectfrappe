@@ -5,6 +5,7 @@ import { Text } from '../primitives/Text';
 import { FieldMessage } from './FieldMessage';
 import { ListItem } from './ListItem';
 import { PickerSheet } from './PickerSheet';
+import { TRIGGER, TRIGGER_BORDER, TRIGGER_ERROR } from './triggerStyles';
 
 export interface SelectOption {
   value: string;
@@ -24,11 +25,6 @@ export interface SelectProps {
   error?: string;
   testID?: string;
 }
-
-export const TRIGGER =
-  'min-h-11 flex-row items-center rounded-lg border bg-surface px-3 dark:bg-surface-dark web:focus-visible:outline-none web:focus-visible:ring-2 web:focus-visible:ring-focus dark:web:focus-visible:ring-focus-dark';
-export const TRIGGER_BORDER = 'border-border dark:border-border-dark';
-export const TRIGGER_ERROR = 'border-danger dark:border-danger-dark';
 
 export function Select({ label, value, options, onChange, placeholder = 'Choose…', allowClear = false, disabled = false, hint, error, testID }: SelectProps) {
   const [open, setOpen] = useState(false);

@@ -16,11 +16,14 @@ export function PickerSheet({ title, visible, onClose, children }: PickerSheetPr
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
         className="flex-1 items-center justify-center bg-scrim/60 px-4 dark:bg-scrim-dark/60"
-        accessibilityLabel="Close the list"
+        testID="picker-backdrop"
+        accessible={false}
+        importantForAccessibility="no"
         onPress={onClose}
       >
         <View
           className="max-h-[80%] w-full max-w-md gap-2 rounded-xl border border-border bg-surface p-4 dark:border-border-dark dark:bg-surface-dark"
+          accessibilityViewIsModal
           onStartShouldSetResponder={() => true}
         >
           <Heading level={3}>{title}</Heading>
