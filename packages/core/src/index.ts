@@ -10,3 +10,5 @@ export * from './validate/buildSchema';
 export * from './perm/evaluate';
 export * from './perm/access';
 export * from './diff/diffDocs';
+export * from './access/userAccess';
+export * from './controller/types';

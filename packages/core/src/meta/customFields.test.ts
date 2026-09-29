@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MetaError } from '../errors';
-import { fieldKey, mergeCustomFields, validateCustomField } from './customFields';
+import { customFieldFromDoc, fieldKey, mergeCustomFields, validateCustomField } from './customFields';
 import { defineDocType } from './defineDocType';
 
 const meta = defineDocType({
@@ -36,5 +36,29 @@ describe('custom fields', () => {
         { fieldname: 'z', label: 'Z again', fieldtype: 'Data' },
       ]),
     ).toThrow(MetaError);
+  });
+});
+
+describe('customFieldFromDoc', () => {
+  it('maps a stored CustomField document to a FieldDef', () => {
+    expect(
+      customFieldFromDoc({
+        id: 'Person.shirtSize',
+        targetDocType: 'Person',
+        fieldname: 'shirtSize',
+        label: 'Shirt size',
+        fieldtype: 'Select',
+        options: 'S\n M \n\nL',
+        permlevel: 1,
+        reqd: true,
+        org: 'jci-kl',
+      }),
+    ).toEqual({ fieldname: 'shirtSize', label: 'Shirt size', fieldtype: 'Select', options: ['S', 'M', 'L'], permlevel: 1, reqd: true });
+    expect(customFieldFromDoc({ fieldname: 'mentor', label: 'Mentor', fieldtype: 'Link', link: 'Person', options: null })).toEqual({
+      fieldname: 'mentor',
+      label: 'Mentor',
+      fieldtype: 'Link',
+      link: 'Person',
+    });
   });
 });
