@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Redirect } from 'expo-router';
-import { Badge, Box, Button, Card, EmptyState, Heading, Input, Screen, Stack, Text, useTheme } from '@jci/ui';
+import { Badge, Box, Button, Card, EmptyState, ErrorState, Heading, Input, ListItem, Screen, Spinner, Stack, Text, useTheme } from '@jci/ui';
 
 export default function UiGallery() {
   const { scheme, toggle } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [picked, setPicked] = useState('kl');
 
   if (!__DEV__) return <Redirect href="/" />;
 
@@ -78,6 +79,17 @@ export default function UiGallery() {
         <Box surface="muted" padding="md" rounded bordered>
           <Text>Muted surface, medium padding, rounded and bordered</Text>
         </Box>
+      </Card>
+
+      <Card title="Feedback">
+        <Spinner label="Loading members" />
+        <ErrorState message="You don't have permission to see this list." onRetry={() => {}} />
+      </Card>
+
+      <Card title="List items">
+        <ListItem title="JCI Kuala Lumpur" subtitle="Local" selected={picked === 'kl'} onPress={() => setPicked('kl')} />
+        <ListItem title="JCI Malaysia" subtitle="Includes child organisations" selected={picked === 'my'} onPress={() => setPicked('my')} />
+        <ListItem title="Read-only row" subtitle="No onPress" />
       </Card>
 
       <Card title="Empty state">
