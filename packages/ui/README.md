@@ -6,7 +6,7 @@
 - writing a hex colour literal anywhere except `src/tokens/tokens.json`
 
 ## Adding or changing UI
-1. Need something that doesn't exist? Build it here first: `src/primitives/` for layout and typography, `src/components/` for everything else.
+1. Need something that doesn't exist? Build it here first: `src/primitives/` for layout and typography, `src/components/` for everything else, `src/layouts/` for full-screen shells.
 2. Give it semantic props (`variant`, `size`, `tone`). Never accept `className` or `style`.
 3. Tailwind classes must be literal strings in lookup maps (`const TONE = { muted: 'text-text-muted dark:text-text-muted-dark' }`). Never build class names at runtime.
 4. Every colour is a semantic token used as a pair: `bg-surface dark:bg-surface-dark`. New colours go in `tokens.json`, and `contrast.test.ts` must still pass (WCAG AA).

@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Redirect } from 'expo-router';
+import { Redirect, useRouter } from 'expo-router';
 import { Badge, Box, Button, Card, EmptyState, ErrorState, Heading, Input, ListItem, Screen, Spinner, Stack, Text, useTheme } from '@jci/ui';
 
 export default function UiGallery() {
+  const router = useRouter();
   const { scheme, toggle } = useTheme();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,6 +95,13 @@ export default function UiGallery() {
 
       <Card title="Empty state">
         <EmptyState title="No members yet" description="Members you add will appear here." actionLabel="Add member" onAction={() => {}} />
+      </Card>
+
+      <Card title="Layouts">
+        <Stack direction="row" gap="sm" wrap>
+          <Button label="AuthShell" variant="secondary" onPress={() => router.push('/gallery-auth-shell')} />
+          <Button label="DeskShell" variant="secondary" onPress={() => router.push('/gallery-desk-shell')} />
+        </Stack>
       </Card>
     </Screen>
   );

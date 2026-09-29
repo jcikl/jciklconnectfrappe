@@ -14,3 +14,5 @@ export { EmptyState, type EmptyStateProps } from './components/EmptyState';
 export { Spinner, type SpinnerProps } from './components/Spinner';
 export { ErrorState, type ErrorStateProps } from './components/ErrorState';
 export { ListItem, type ListItemProps } from './components/ListItem';
+export { AuthShell, type AuthShellProps } from './layouts/AuthShell';
+export { DeskShell, deskLayout, DESK_WIDE_MIN, type DeskShellProps, type DeskNavItem } from './layouts/DeskShell';
