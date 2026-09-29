@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
@@ -32,6 +32,12 @@ export function deskLayout(width: number): 'wide' | 'narrow' {
 export function DeskShell({ title, nav, activeKey, onNavigate, sidebarFooter, children, testID }: DeskShellProps) {
   const { width } = useWindowDimensions();
   const [menuOpen, setMenuOpen] = useState(false);
+  const wide = deskLayout(width) === 'wide';
+
+  // A resize to the wide layout must not leave a stale open menu behind.
+  useEffect(() => {
+    if (wide) setMenuOpen(false);
+  }, [wide]);
 
   const navigate = (key: string) => {
     setMenuOpen(false);
@@ -47,7 +53,7 @@ export function DeskShell({ title, nav, activeKey, onNavigate, sidebarFooter, ch
     </ScrollView>
   );
 
-  if (deskLayout(width) === 'wide') {
+  if (wide) {
     return (
       <SafeAreaView testID={testID} className="flex-1 flex-row bg-background dark:bg-background-dark">
         <View className="w-64 border-r border-border bg-surface dark:border-border-dark dark:bg-surface-dark">
@@ -73,7 +79,15 @@ export function DeskShell({ title, nav, activeKey, onNavigate, sidebarFooter, ch
           onPress={() => setMenuOpen((open) => !open)}
         />
       </View>
-      {menuOpen ? <View className="flex-1 bg-surface dark:bg-surface-dark">{navigation}</View> : <View className="flex-1">{children}</View>}
+      {/* Content stays mounted while the menu is open (unmounting expo-router's Slot resets the route). */}
+      <View testID="desk-content" className={menuOpen ? 'hidden' : 'flex-1'}>
+        {children}
+      </View>
+      {menuOpen ? (
+        <View testID="desk-menu" className="flex-1 bg-surface dark:bg-surface-dark">
+          {navigation}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
