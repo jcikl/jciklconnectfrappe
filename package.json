@@ -3,25 +3,31 @@
   "private": true,
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "netlify"
   ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
     "test": "npm run test:node && npm run test:ui",
-    "test:node": "vitest run",
+    "test:node": "vitest run --project unit",
     "test:ui": "npm test -w @jci/ui",
-    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/doctypes --noEmit && tsc -p packages/ui --noEmit && tsc -p apps/app --noEmit",
+    "typecheck": "tsc -p packages/core --noEmit && tsc -p packages/doctypes --noEmit && tsc -p packages/ui --noEmit && tsc -p apps/app --noEmit && tsc -p tsconfig.server.json --noEmit",
     "lint": "eslint .",
     "check": "npm run lint && npm run typecheck && npm test",
     "build:web": "npm run export:web -w @jci/app",
-    "gen:rules": "tsx scripts/gen-rules.mts"
+    "gen:rules": "tsx scripts/gen-rules.mts",
+    "test:emulator": "firebase emulators:exec --only auth,firestore \"vitest run --project emulator\"",
+    "emulators": "firebase emulators:start --only auth,firestore"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@firebase/rules-unit-testing": "^5.0.2",
     "@types/node": "^22.20.4",
     "eslint": "^9.39.5",
+    "firebase": "^12.19.0",
+    "firebase-tools": "^15.32.0",
     "globals": "^17.12.0",
     "tsx": "^4.23.15",
     "typescript": "~5.8.0",
