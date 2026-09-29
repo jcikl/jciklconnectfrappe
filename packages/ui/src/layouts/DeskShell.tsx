@@ -80,7 +80,7 @@ export function DeskShell({ title, nav, activeKey, onNavigate, sidebarFooter, ch
         />
       </View>
       {/* Content stays mounted while the menu is open (unmounting expo-router's Slot resets the route). */}
-      <View testID="desk-content" className={menuOpen ? 'hidden' : 'flex-1'}>
+      <View testID="desk-content" className={menuOpen ? 'hidden' : 'flex-1'} aria-hidden={menuOpen}>
         {children}
       </View>
       {menuOpen ? (

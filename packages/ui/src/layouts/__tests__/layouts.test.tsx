@@ -48,19 +48,23 @@ describe('DeskShell (narrow, the jest default window)', () => {
     );
     expect(screen.getByRole('header', { name: 'JCI Desk' })).toBeTruthy();
     expect(screen.getByText('Page content')).toBeTruthy();
+    expect(screen.getByTestId('desk-content').props['aria-hidden']).toBe(false);
     expect(screen.getByTestId('desk-content').props.className).not.toContain('hidden');
     expect(screen.queryByRole('button', { name: 'Role Assignment' })).toBeNull();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Menu' }));
     // Content stays mounted but is hidden; the nav is shown on top.
-    expect(screen.getByText('Page content')).toBeTruthy();
-    expect(screen.getByTestId('desk-content').props.className).toContain('hidden');
+    // aria-hidden excludes the element from accessibility tree queries.
+    expect(screen.queryByText('Page content')).toBeNull();
     expect(screen.getByRole('button', { name: 'Organization' }).props.accessibilityState).toMatchObject({ selected: true });
     expect(screen.getByText('Signed in')).toBeTruthy();
 
     await fireEvent.press(screen.getByRole('button', { name: 'Role Assignment' }));
     expect(onNavigate).toHaveBeenCalledWith('RoleAssignment');
     expect(screen.queryByRole('button', { name: 'Role Assignment' })).toBeNull();
+    // After closing, content is accessible again.
+    expect(screen.getByText('Page content')).toBeTruthy();
+    expect(screen.getByTestId('desk-content').props['aria-hidden']).toBe(false);
     expect(screen.getByTestId('desk-content').props.className).not.toContain('hidden');
     expect(onUnmount).not.toHaveBeenCalled();
   });
@@ -74,10 +78,13 @@ describe('DeskShell (narrow, the jest default window)', () => {
       </DeskShell>,
     );
     await fireEvent.press(screen.getByRole('button', { name: 'Menu' }));
-    expect(screen.getByTestId('desk-content').props.className).toContain('hidden');
+    // Content is hidden from accessibility tree while menu is open.
+    expect(screen.queryByText('Page content')).toBeNull();
     await fireEvent.press(screen.getByRole('button', { name: 'Close' }));
-    expect(screen.getByTestId('desk-content').props.className).not.toContain('hidden');
+    // After closing, content is accessible again.
     expect(screen.getByText('Page content')).toBeTruthy();
+    expect(screen.getByTestId('desk-content').props['aria-hidden']).toBe(false);
+    expect(screen.getByTestId('desk-content').props.className).not.toContain('hidden');
     expect(onNavigate).not.toHaveBeenCalled();
     expect(onUnmount).not.toHaveBeenCalled();
   });
