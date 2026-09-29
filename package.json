@@ -21,7 +21,7 @@
     "dev:api": "npm run build:functions && netlify dev --filter @jci/functions",
     "gen:rules": "tsx scripts/gen-rules.mts",
     "seed:dev": "tsx scripts/seed-dev.mts",
-    "test:emulator": "firebase emulators:exec --only auth,firestore \"vitest run --project emulator\"",
+    "test:emulator": "firebase emulators:exec --only auth,firestore \"vitest run --project emulator --no-file-parallelism\"",
     "emulators": "firebase emulators:start --only auth,firestore"
   },
   "devDependencies": {

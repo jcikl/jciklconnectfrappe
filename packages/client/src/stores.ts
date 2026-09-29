@@ -1,0 +1,67 @@
+import { USER_ACCESS_COLLECTION, userContextFromAccess, type ListFilter, type UserContext } from '@jci/core';
+import { onAuthStateChanged, type Auth } from 'firebase/auth';
+import { collection, doc, limit, onSnapshot, query, where, type Firestore } from 'firebase/firestore';
+import { createStore, type Store } from './store';
+
+export type AuthState = { status: 'loading' } | { status: 'signedOut' } | { status: 'signedIn'; uid: string; email: string | null };
+export type AccessState = { status: 'loading' } | { status: 'ready'; user: UserContext } | { status: 'error'; message: string };
+export interface QueryDoc {
+  id: string;
+  data: Record<string, unknown>;
+}
+export type DocsState = { status: 'loading' } | { status: 'ready'; docs: QueryDoc[] } | { status: 'error'; message: string };
+export type DocState = { status: 'loading' } | { status: 'ready'; doc: QueryDoc | null } | { status: 'error'; message: string };
+
+/** Most documents a list query returns until M3c adds paging. */
+export const LIST_LIMIT = 50;
+
+export function createAuthStore(auth: Auth): Store<AuthState> {
+  return createStore<AuthState>({ status: 'loading' }, (set) =>
+    onAuthStateChanged(auth, (user) => set(user ? { status: 'signedIn', uid: user.uid, email: user.email } : { status: 'signedOut' })),
+  );
+}
+
+/** The caller's grants, live from userAccess/{uid}. A missing doc means no roles. */
+export function createAccessStore(db: Firestore, uid: string): Store<AccessState> {
+  return createStore<AccessState>({ status: 'loading' }, (set) =>
+    onSnapshot(
+      doc(db, USER_ACCESS_COLLECTION, uid),
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.metadata.fromCache) return; // server-confirmed only: no stale grants (offline is out of scope for M3a)
+        set({ status: 'ready', user: userContextFromAccess(snap.exists() ? snap.data() : null, uid) });
+      },
+      (err) => set({ status: 'error', message: err.message }),
+    ),
+  );
+}
+
+/** A live list query. `filters` must come from listFilters so the rules allow it. */
+export function createDocsStore(db: Firestore, collectionName: string, filters: readonly ListFilter[], max = LIST_LIMIT): Store<DocsState> {
+  const q = query(collection(db, collectionName), ...filters.map((f) => where(f.field, f.op, f.value)), limit(max));
+  return createStore<DocsState>({ status: 'loading' }, (set) =>
+    onSnapshot(
+      q,
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.metadata.fromCache) return; // server-confirmed only: never show cached rows for a query the rules deny
+        set({ status: 'ready', docs: snap.docs.map((d) => ({ id: d.id, data: d.data() })) });
+      },
+      (err) => set({ status: 'error', message: err.message }),
+    ),
+  );
+}
+
+export function createDocStore(db: Firestore, collectionName: string, id: string): Store<DocState> {
+  return createStore<DocState>({ status: 'loading' }, (set) =>
+    onSnapshot(
+      doc(db, collectionName, id),
+      { includeMetadataChanges: true },
+      (snap) => {
+        if (snap.metadata.fromCache) return; // server-confirmed only: never show a cached doc the rules deny
+        set({ status: 'ready', doc: snap.exists() ? { id: snap.id, data: snap.data() } : null });
+      },
+      (err) => set({ status: 'error', message: err.message }),
+    ),
+  );
+}
