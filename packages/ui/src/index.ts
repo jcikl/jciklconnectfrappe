@@ -19,3 +19,6 @@ export { Select, type SelectProps, type SelectOption } from './components/Select
 export { LinkPicker, type LinkPickerProps, type LinkOption } from './components/LinkPicker';
 export { AuthShell, type AuthShellProps } from './layouts/AuthShell';
 export { DeskShell, deskLayout, DESK_WIDE_MIN, type DeskShellProps, type DeskNavItem } from './layouts/DeskShell';
+export { FieldControl } from './fields/FieldControl';
+export { fieldHint } from './fields/hints';
+export type { FieldControlProps, RenderField } from './fields/types';

@@ -18,6 +18,7 @@
     "react-native-safe-area-context": "*"
   },
   "dependencies": {
+    "@jci/core": "*",
     "clsx": "^2.1.1",
     "tailwind-merge": "^2.5.0"
   },
