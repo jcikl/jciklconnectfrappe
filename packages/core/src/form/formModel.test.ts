@@ -53,6 +53,16 @@ const feeRow = defineDocType({
     { fieldname: 'amount', label: 'Amount', fieldtype: 'Currency', permlevel: 1 },
   ],
 });
+// `audit` is hidden and at a level nobody reads.
+const noteRow = defineDocType({
+  name: 'NoteRow',
+  module: 't',
+  isChild: true,
+  fields: [
+    { fieldname: 'text', label: 'Text', fieldtype: 'Data' },
+    { fieldname: 'audit', label: 'Audit', fieldtype: 'Data', permlevel: 2, hidden: true },
+  ],
+});
 const club = defineDocType({
   name: 'Club',
   module: 't',
@@ -60,6 +70,7 @@ const club = defineDocType({
   fields: [
     { fieldname: 'title', label: 'Title', fieldtype: 'Data' },
     { fieldname: 'fees', label: 'Fees', fieldtype: 'Table', childDocType: 'FeeRow' },
+    { fieldname: 'notes', label: 'Notes', fieldtype: 'Table', childDocType: 'NoteRow' },
   ],
   permissions: [
     { role: 'Member', read: true, write: true },
@@ -71,6 +82,7 @@ const club = defineDocType({
 const resolveChild = (name: string) => {
   if (name === 'DuesRow') return duesRow;
   if (name === 'FeeRow') return feeRow;
+  if (name === 'NoteRow') return noteRow;
   throw new Error(`unexpected child ${name}`);
 };
 const shirt: FieldDef = { fieldname: 'shirtSize', label: 'Shirt size', fieldtype: 'Data', permlevel: 1 };
@@ -185,6 +197,37 @@ describe('formFields', () => {
     const officerFields = byKey(formFields(clubAccess(officer), resolveChild, false));
     expect(officerFields.fees!.editable).toBe(true);
     expect(officerFields.fees!.rowsFixed).toBe(false);
+    // On create there are no stored rows to shift, so rows are never fixed.
+    const createFields = byKey(formFields(clubAccess(member), resolveChild, true));
+    expect(createFields.fees!.editable).toBe(true);
+    expect(createFields.fees!.rowsFixed).toBe(false);
+  });
+
+  it('locks a table on update when a hidden child column is unreadable, but not on create', () => {
+    const clubAccess = resolveDocAccess({ meta: club, customFields: [], user: member, doc: { orgPath: KL, ownerPersonId: 'p1' }, resolveChild });
+    const update = byKey(formFields(clubAccess, resolveChild, false));
+    expect(update.notes!.editable).toBe(false);
+    expect(update.notes!.children!.map((c) => [c.key, c.editable])).toEqual([['text', false]]);
+    const create = byKey(formFields(clubAccess, resolveChild, true));
+    expect(create.notes!.editable).toBe(true);
+    expect(create.notes!.children!.map((c) => [c.key, c.editable])).toEqual([['text', true]]);
+  });
+
+  it('gives a create-only role a create form of its level-0 fields, and nothing on update', () => {
+    const a = access(treasurer, 'p3');
+    const create = formFields(a, resolveChild, true);
+    expect(create.map((f) => [f.key, f.editable])).toEqual([
+      ['fullName', true],
+      ['nickname', true],
+      ['hasCar', true],
+      ['carPlate', true],
+      ['kind', true],
+      ['bNote', true],
+      ['dues', true],
+    ]);
+    // dues is editable on create although the Treasurer reads none of its columns; only editable ones are listed.
+    expect(byKey(create).dues!.children!.map((c) => [c.key, c.editable])).toEqual([['year', true]]);
+    expect(formFields(a, resolveChild, false)).toEqual([]);
   });
 
   it('makes nothing editable for a reader without write access', () => {
@@ -249,6 +292,14 @@ describe('formValues and formPayload', () => {
     const createFields = formFields(access(officer, 'p2'), resolveChild, true);
     expect(byKey(createFields).dues!.editable).toBe(true);
     expect(formPayload(createFields, { ...formValues(createFields, null), fullName: 'New' }, null)).toEqual({ fullName: 'New' });
+  });
+
+  it('does not send an empty table on update when the stored table is missing or null', () => {
+    const missing: Record<string, unknown> = { ...stored };
+    delete missing.dues;
+    expect(formPayload(officerFields, formValues(officerFields, missing), missing)).toEqual({});
+    const nulled = { ...stored, dues: null };
+    expect(formPayload(officerFields, formValues(officerFields, nulled), nulled)).toEqual({});
   });
 
   it('treats a stored optional blank as null, so an untouched one is not a change', () => {
