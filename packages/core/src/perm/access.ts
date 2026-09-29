@@ -22,6 +22,10 @@ export interface DocAccess {
   canCreate: boolean;
   canDelete: boolean;
   readableFields: readonly FieldDef[];
+  /** The caller may read this field (core, custom or child column): its permlevel is among their read levels. */
+  canReadField(field: FieldDef): boolean;
+  /** The caller may set this field: not readOnly, and its permlevel is among their write levels (plus level 0 on create). */
+  canEditField(field: FieldDef, isNew: boolean): boolean;
   schema(mode: 'create' | 'update'): z.ZodType;
   /**
    * Keys of `patch` the caller may not change: readOnly fields and fields above their write permlevels,
@@ -91,6 +95,8 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
   const byKey = new Map(fields.map((f) => [fieldKey(f), f]));
   const canCreate = can(meta, user, 'create', doc);
   const writeLevels = permittedLevels(meta, user, 'write', doc);
+  const readLevels = permittedLevels(meta, user, 'read', doc);
+  const levelsFor = (isNew: boolean) => (isNew && canCreate ? new Set([0, ...writeLevels]) : writeLevels);
   const readable = readableFields(meta, fields, user, doc);
   const schemas = new Map<'create' | 'update', z.ZodType>();
 
@@ -101,6 +107,8 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
     canCreate,
     canDelete: can(meta, user, 'delete', doc),
     readableFields: readable,
+    canReadField: (field) => readLevels.has(field.permlevel ?? 0),
+    canEditField: (field, isNew) => !isLocked(field, levelsFor(isNew)),
     schema(mode) {
       let s = schemas.get(mode);
       if (!s) {
@@ -111,7 +119,7 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
     },
     unwritableKeys(patch, before) {
       // A creator may always fill level-0 fields, even with create-only permission.
-      const levels = before === null && canCreate ? new Set([0, ...writeLevels]) : writeLevels;
+      const levels = levelsFor(before === null);
       const locked = patchKeys(patch).filter((key) => {
         const f = byKey.get(key);
         return f !== undefined && isLocked(f, levels) && !deepEqual(getFieldValue(patch, key), getFieldValue(before, key));
@@ -120,7 +128,6 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
     },
     redact(target) {
       const out = redactDoc(target, readable);
-      const readLevels = permittedLevels(meta, user, 'read', doc);
       for (const f of readable) {
         const rows = out[f.fieldname];
         if (f.fieldtype !== 'Table' || f.isCustom || !Array.isArray(rows)) continue;

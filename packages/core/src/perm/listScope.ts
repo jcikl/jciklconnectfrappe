@@ -70,3 +70,23 @@ export function listFilters(meta: DocTypeMeta, user: UserContext, scope: ScopeOp
 export function docTypeLabel(meta: DocTypeMeta): string {
   return meta.name.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
+
+/**
+ * Rule-safe filters that include one stored document: listFilters for the first scope option that covers it
+ * (an exact option at its org, or a subtree option on its orgPath). Null when no option covers it.
+ */
+export function filtersForDoc(
+  meta: DocTypeMeta,
+  user: UserContext,
+  doc: { orgId?: unknown; orgPath?: unknown; ownerPersonId?: unknown },
+): ListFilter[] | null {
+  if (!meta.orgScoped) return listFilters(meta, user, null);
+  const orgPath = Array.isArray(doc.orgPath) ? (doc.orgPath as unknown[]) : [];
+  for (const option of scopeOptions(user)) {
+    const covers = option.withDescendants ? orgPath.includes(option.orgId) : doc.orgId === option.orgId;
+    if (!covers) continue;
+    const filters = listFilters(meta, user, option);
+    if (filters) return filters;
+  }
+  return null;
+}

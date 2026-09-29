@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { defineDocType } from '../meta/defineDocType';
 import type { UserContext } from './evaluate';
-import { canReadSomewhere, docTypeLabel, listFilters, readableDocTypes, scopeOptions } from './listScope';
+import { canReadSomewhere, docTypeLabel, filtersForDoc, listFilters, readableDocTypes, scopeOptions } from './listScope';
 
 const title = [{ fieldname: 'title', label: 'Title', fieldtype: 'Data' as const }];
 const org = defineDocType({
@@ -114,5 +114,26 @@ describe('docTypeLabel', () => {
   it('splits PascalCase names into words', () => {
     expect(docTypeLabel(org)).toBe('Organization');
     expect(docTypeLabel(note)).toBe('Personal Note');
+  });
+});
+
+describe('filtersForDoc', () => {
+  const KL = ['jci', 'jci-asia-pacific', 'jci-malaysia', 'jci-malaysia-central', 'jci-kl'];
+  const PJ = [...KL.slice(0, 4), 'jci-pj'];
+
+  it('uses the scope option that covers the document', () => {
+    expect(filtersForDoc(org, member, { orgId: 'jci-kl', orgPath: KL })).toEqual([{ field: 'orgId', op: '==', value: 'jci-kl' }]);
+    expect(filtersForDoc(org, officer, { orgId: 'jci-pj', orgPath: PJ })).toEqual([
+      { field: 'orgPath', op: 'array-contains', value: 'jci-malaysia' },
+    ]);
+    expect(filtersForDoc(org, member, { orgId: 'jci-pj', orgPath: PJ })).toBeNull();
+  });
+
+  it('keeps the owner filter and ignores the doc for global DocTypes', () => {
+    expect(filtersForDoc(note, member, { orgId: 'jci-kl', orgPath: KL, ownerPersonId: 'p1' })).toEqual([
+      { field: 'orgId', op: '==', value: 'jci-kl' },
+      { field: 'ownerPersonId', op: '==', value: 'p1' },
+    ]);
+    expect(filtersForDoc(setting, member, {})).toEqual([]);
   });
 });
