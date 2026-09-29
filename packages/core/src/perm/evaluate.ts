@@ -1,4 +1,3 @@
-import { fieldKey } from '../meta/customFields';
 import type { DocPerm, DocTypeMeta, FieldDef, RoleName } from '../meta/types';
 
 export interface RoleGrant {
@@ -15,14 +14,16 @@ export interface UserContext {
 }
 
 export interface DocContext {
-  /** Ancestors from the root, ending with the doc's own org. */
-  orgPath: readonly string[];
+  /** Ancestors from the root, ending with the doc's own org; null for a global (orgScoped: false) DocType. */
+  orgPath: readonly string[] | null;
   ownerPersonId?: string | null;
 }
 
 export type Action = 'read' | 'write' | 'create' | 'delete';
 
-export function grantApplies(grant: RoleGrant, orgPath: readonly string[]): boolean {
+export function grantApplies(grant: RoleGrant, orgPath: readonly string[] | null): boolean {
+  // Global DocTypes have no org: a role held anywhere applies.
+  if (orgPath === null) return true;
   if (orgPath.length === 0) return false;
   return grant.withDescendants ? orgPath.includes(grant.orgId) : orgPath[orgPath.length - 1] === grant.orgId;
 }
@@ -70,24 +71,4 @@ export function patchKeys(patch: Record<string, unknown>): string[] {
     }
   }
   return keys;
-}
-
-/**
- * Keys in the patch the user may not write (readOnly or above their write permlevels).
- * Unknown keys are ignored here; schema validation rejects them.
- */
-export function unwritableKeys(
-  meta: DocTypeMeta,
-  fields: readonly FieldDef[],
-  user: UserContext,
-  doc: DocContext,
-  patch: Record<string, unknown>,
-): string[] {
-  const levels = permittedLevels(meta, user, 'write', doc);
-  const byKey = new Map(fields.map((f) => [fieldKey(f), f]));
-  return patchKeys(patch).filter((key) => {
-    const f = byKey.get(key);
-    if (!f) return false;
-    return f.readOnly === true || !levels.has(f.permlevel ?? 0);
-  });
 }

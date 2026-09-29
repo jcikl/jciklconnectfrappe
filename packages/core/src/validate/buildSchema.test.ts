@@ -1,3 +1,4 @@
+import type { z } from 'zod';
 import { describe, expect, it } from 'vitest';
 import { MetaError } from '../errors';
 import { defineDocType } from '../meta/defineDocType';
@@ -123,5 +124,11 @@ describe('buildSchema', () => {
         ],
       }),
     ).toThrow(/duplicate/);
+  });
+
+  it('builds each child row schema once and reuses it', () => {
+    type TableSchema = z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodType>>>;
+    const rows = (s: ReturnType<typeof buildSchema>) => (s.shape.history as TableSchema).unwrap().unwrap().element;
+    expect(rows(buildSchema(member, { resolveChild }))).toBe(rows(buildSchema(member, { resolveChild, mode: 'update' })));
   });
 });

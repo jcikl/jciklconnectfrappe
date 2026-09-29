@@ -6,3 +6,7 @@ web-build/
 .env*
 !.env.example
 coverage/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.netlify/

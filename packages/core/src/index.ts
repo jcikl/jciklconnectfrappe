@@ -1,4 +1,5 @@
 export * from './errors';
+export * from './collections';
 export * from './naming/series';
 export * from './meta/types';
 export * from './meta/defineDocType';
@@ -7,4 +8,8 @@ export * from './org/hierarchy';
 export * from './meta/customFields';
 export * from './validate/buildSchema';
 export * from './perm/evaluate';
+export * from './perm/access';
 export * from './diff/diffDocs';
+export * from './access/userAccess';
+export * from './controller/types';
+export * from './rules/generateRules';

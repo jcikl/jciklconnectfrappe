@@ -1,6 +1,6 @@
 import { MetaError } from '../errors';
 import { validateField } from './defineDocType';
-import type { DocTypeMeta, FieldDef } from './types';
+import type { DocTypeMeta, FieldDef, FieldType } from './types';
 
 export function validateCustomField(meta: DocTypeMeta, field: FieldDef): void {
   validateField(meta.name, field);
@@ -28,4 +28,24 @@ export function mergeCustomFields(meta: DocTypeMeta, custom: readonly FieldDef[]
 /** Path of the field's value inside a stored document. */
 export function fieldKey(field: FieldDef): string {
   return field.isCustom ? `custom.${field.fieldname}` : field.fieldname;
+}
+
+/** Converts a stored CustomField document into a FieldDef. Options are stored one per line. */
+export function customFieldFromDoc(doc: Record<string, unknown>): FieldDef {
+  const options =
+    typeof doc.options === 'string'
+      ? doc.options
+          .split('\n')
+          .map((o) => o.trim())
+          .filter((o) => o !== '')
+      : [];
+  return {
+    fieldname: String(doc.fieldname),
+    label: String(doc.label),
+    fieldtype: doc.fieldtype as FieldType,
+    ...(options.length > 0 ? { options } : {}),
+    ...(typeof doc.link === 'string' && doc.link !== '' ? { link: doc.link } : {}),
+    ...(typeof doc.permlevel === 'number' ? { permlevel: doc.permlevel } : {}),
+    ...(doc.reqd === true ? { reqd: true } : {}),
+  };
 }

@@ -60,6 +60,8 @@ describe('UI enforcement in app code', { timeout: 30000 }, () => {
     ['@expo/ui subpaths', APP_FILE, "import { Button } from '@expo/ui/swift-ui';\nexport const x = Button;\n"],
     ['react-native-gesture-handler', APP_FILE, "import { GestureDetector } from 'react-native-gesture-handler';\nexport const x = GestureDetector;\n"],
     ['safe-area-context subpaths', APP_FILE, "import { SafeAreaView } from 'react-native-safe-area-context/lib';\nexport const x = SafeAreaView;\n"],
+    ['a react-native deep import', APP_FILE, "import View from 'react-native/Libraries/Components/View/View';\nexport const x = View;\n"],
+    ['a nativewind subpath', APP_FILE, "import { cssInterop } from 'nativewind/dist/runtime';\nexport const x = cssInterop;\n"],
   ])('blocks %s', async (_label, file, code) => {
     expect(await ruleIds(file, code)).toContain('no-restricted-imports');
   });
@@ -69,6 +71,7 @@ describe('UI enforcement in app code', { timeout: 30000 }, () => {
     ['react-native (template literal)', 'export const load = () => import(`react-native`);\n'],
     ['expo-image', "export const load = () => import('expo-image');\n"],
     ['a pattern-restricted module', "export const load = () => import('@tanstack/react-query');\n"],
+    ['a react-native deep path', "export const load = () => import('react-native/Libraries/Components/View/View');\n"],
   ])('blocks dynamic import of %s', async (_label, code) => {
     expect(await ruleIds(APP_FILE, code)).toContain('jci/no-restricted-dynamic-imports');
   });
