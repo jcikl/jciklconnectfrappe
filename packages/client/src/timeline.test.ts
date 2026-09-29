@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isCapped } from './stores';
 import { formatValue, timelineEntries } from './timeline';
 
 describe('formatValue', () => {
@@ -34,5 +35,19 @@ describe('timelineEntries', () => {
 
   it('falls back to the raw field name and tolerates missing data', () => {
     expect(timelineEntries([{ id: 'v', data: {} }], {})).toEqual([{ id: 'v', action: 'update', by: '', at: null, changes: [] }]);
+  });
+});
+
+describe('label lookup and isCapped', () => {
+  it('ignores inherited keys when labelling', () => {
+    const e = timelineEntries([{ id: 'v', data: { changed: [{ field: 'constructor', old: 1, new: 2 }] } }], {});
+    expect(e[0]!.changes[0]!.label).toBe('constructor');
+  });
+
+  it('reports when the history hit the limit', () => {
+    expect(isCapped(new Array(99))).toBe(false);
+    expect(isCapped(new Array(100))).toBe(true);
+    expect(isCapped([1, 2], 2)).toBe(true);
+    expect(isCapped([1], 2)).toBe(false);
   });
 });

@@ -51,6 +51,7 @@ beforeAll(async () => {
   });
   await admin.db.collection('versions').doc('v1').set(version('jci-kl', KL, '2026-09-01T00:00:00Z', 'First'));
   await admin.db.collection('versions').doc('v2').set(version('jci-kl', KL, '2026-09-29T00:00:00Z', 'Second'));
+  await admin.db.collection('versions').doc('v4').set(version('jci-kl', KL, '2026-09-30T00:00:00Z', 'Third'));
   await admin.db.collection('versions').doc('v3').set(version('jci-pj', PJ, '2026-09-29T00:00:00Z', 'PJ'));
   await admin.db
     .collection('customFields')
@@ -75,7 +76,14 @@ describe('form data stores against the generated rules', () => {
     const state = await settle(createVersionsStore(client.db, 'Organization', 'jci-kl', filters));
     expect(state.status).toBe('ready');
     const entries = timelineEntries(state.status === 'ready' ? state.docs : [], { title: 'Name' });
-    expect(entries.map((e) => e.changes[0]!.to)).toEqual(['Second', 'First']);
+    expect(entries.map((e) => e.changes[0]!.to)).toEqual(['Third', 'Second', 'First']);
+  });
+
+  it('returns the newest entries when capped', async () => {
+    const filters = filtersForDoc(Organization, member, { orgId: 'jci-kl', orgPath: KL })!;
+    const state = await settle(createVersionsStore(client.db, 'Organization', 'jci-kl', filters, 2));
+    const entries = timelineEntries(state.status === 'ready' ? state.docs : [], { title: 'Name' });
+    expect(entries.map((e) => e.changes[0]!.to)).toEqual(['Third', 'Second']);
   });
 
   it('has no filters for a document outside the caller scope, and the rules deny a guessed query', async () => {

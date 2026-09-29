@@ -21,12 +21,13 @@ function fieldOf(path: string): string {
 }
 
 function rowPrefix(path: string): string {
-  const m = /^[^.]+\.(\d+)\.([^.]+)/.exec(path);
-  return m && !path.startsWith('custom.') ? `Row ${Number(m[1]) + 1}, ${m[2]}: ` : '';
+  const m = /^[^.]+\.(\d+)(?:\.([^.]+))?/.exec(path);
+  if (!m || path.startsWith('custom.')) return '';
+  return m[2] ? `Row ${Number(m[1]) + 1}, ${m[2]}: ` : `Row ${Number(m[1]) + 1}: `;
 }
 
 export function formErrorsFromIssues(issues: readonly Issue[]): FormErrors {
-  const fields: Record<string, string> = {};
+  const fields: Record<string, string> = Object.create(null) as Record<string, string>;
   let form: string | null = null;
   for (const issue of issues) {
     if (issue.path === '') {
@@ -39,7 +40,7 @@ export function formErrorsFromIssues(issues: readonly Issue[]): FormErrors {
 }
 
 function markFields(keys: unknown, message: string): Record<string, string> {
-  const fields: Record<string, string> = {};
+  const fields: Record<string, string> = Object.create(null) as Record<string, string>;
   if (Array.isArray(keys)) for (const k of keys) if (typeof k === 'string') fields[fieldOf(k)] = message;
   return fields;
 }

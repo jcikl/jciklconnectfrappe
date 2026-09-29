@@ -17,6 +17,13 @@ describe('formErrorsFromIssues', () => {
       form: 'Unrecognized key: "x"',
     });
   });
+
+  it('handles row-level paths and never reads inherited keys', () => {
+    expect(formErrorsFromIssues([{ path: 'dues.0', message: 'Required' }]).fields).toEqual({ dues: 'Row 1: Required' });
+    const r = formErrorsFromIssues([{ path: 'constructor', message: 'Bad' }, { path: 'constructor', message: 'Worse' }]);
+    expect(r.fields.constructor).toBe('Bad');
+    expect(formErrorsFromIssues([{ path: 'x', message: 'm' }]).fields.constructor).toBeUndefined();
+  });
 });
 
 describe('formErrorsFrom', () => {

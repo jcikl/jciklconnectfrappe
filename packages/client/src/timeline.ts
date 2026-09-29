@@ -46,7 +46,7 @@ export function timelineEntries(docs: readonly QueryDoc[], labels: Readonly<Reco
         by: typeof d.data.by === 'string' ? d.data.by : '',
         at: toDate(d.data.at),
         changes: changed.filter(isRecord).map((c) => ({
-          label: labels[String(c.field)] ?? String(c.field),
+          label: Object.hasOwn(labels, String(c.field)) ? labels[String(c.field)]! : String(c.field),
           from: formatValue(c.old),
           to: formatValue(c.new),
         })),
