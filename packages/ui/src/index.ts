@@ -22,3 +22,5 @@ export { DeskShell, deskLayout, DESK_WIDE_MIN, type DeskShellProps, type DeskNav
 export { FieldControl } from './fields/FieldControl';
 export { fieldHint } from './fields/hints';
 export type { FieldControlProps, RenderField } from './fields/types';
+export { DocForm, type DocFormProps } from './desk/DocForm';
+export { Timeline, type TimelineProps, type TimelineItem } from './desk/Timeline';

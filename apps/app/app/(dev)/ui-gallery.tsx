@@ -128,6 +128,7 @@ export default function UiGallery() {
           <Button label="AuthShell" variant="secondary" onPress={() => router.push('/gallery-auth-shell')} />
           <Button label="DeskShell" variant="secondary" onPress={() => router.push('/gallery-desk-shell')} />
           <Button label="Field controls" variant="secondary" onPress={() => router.push('/gallery-fields')} />
+          <Button label="DocForm" variant="secondary" onPress={() => router.push('/gallery-doc-form')} />
         </Stack>
       </Card>
     </Screen>
