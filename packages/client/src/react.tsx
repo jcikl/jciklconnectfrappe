@@ -7,8 +7,10 @@ import { constantStore, type Store } from './store';
 import {
   createAccessStore,
   createAuthStore,
+  createCustomFieldsStore,
   createDocsStore,
   createDocStore,
+  createVersionsStore,
   type AccessState,
   type AuthState,
   type DocsState,
@@ -74,5 +76,25 @@ export function useDocs(collection: string | null, filters: readonly ListFilter[
 export function useDocument(collection: string | null, id: string | null): DocState {
   const { client } = useClient();
   const store = useMemo(() => (collection && id ? createDocStore(client.db, collection, id) : NO_DOC), [client, collection, id]);
+  return useStore(store);
+}
+
+/** A document's version entries. Pass the filters from filtersForDoc; null means nothing to load. */
+export function useVersions(doctype: string | null, docId: string | null, orgFilters: readonly ListFilter[] | null): DocsState {
+  const { client } = useClient();
+  const key = orgFilters ? JSON.stringify(orgFilters) : null;
+  const store = useMemo(
+    () => (doctype && docId && key !== null ? createVersionsStore(client.db, doctype, docId, JSON.parse(key) as ListFilter[]) : NO_DOCS),
+    [client, doctype, docId, key],
+  );
+  return useStore(store);
+}
+
+export function useCustomFields(collectionName: string, targetDocType: string | null): DocsState {
+  const { client } = useClient();
+  const store = useMemo(
+    () => (targetDocType ? createCustomFieldsStore(client.db, collectionName, targetDocType) : NO_DOCS),
+    [client, collectionName, targetDocType],
+  );
   return useStore(store);
 }
