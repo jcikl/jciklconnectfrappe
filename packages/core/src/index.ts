@@ -10,6 +10,7 @@ export * from './validate/buildSchema';
 export * from './perm/evaluate';
 export * from './perm/access';
 export * from './perm/listScope';
+export * from './form/formModel';
 export * from './diff/diffDocs';
 export * from './access/userAccess';
 export * from './controller/types';

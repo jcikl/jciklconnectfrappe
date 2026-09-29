@@ -44,7 +44,7 @@ Design: `docs/superpowers/specs/2026-09-29-jci-platform-core-member-crm-design.m
    - `npx expo start`, then press `a` for the Android emulator. Expo Go reaches the PC at `10.0.2.2`.
 4. Sign in. The Desk lists only the DocTypes your roles can read. Lists come straight from Firestore through the generated rules.
 
-Saving (M3b) goes through `/api/resource`, so run `npm run dev:api` alongside when you need writes.
+Opening a record shows its form and history. Creating and saving go through `/api/resource`, so run `npm run dev:api -- --offline` alongside (with `cp .env.example .env` first; it allows the Expo web origin). The form checks your changes with the same schema the server uses, and only the fields your roles may change are editable.
 
 If `npm run typecheck` rejects a new route, delete `apps/app/.expo/types` or run `npx expo start` once; the typed-route file is generated locally and ignored by git.
 
