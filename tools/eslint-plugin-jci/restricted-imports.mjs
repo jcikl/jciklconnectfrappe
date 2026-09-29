@@ -45,6 +45,8 @@ export const RESTRICTED_UI_IMPORTS = {
         'expo-symbols',
         'react-native-gesture-handler',
         'react-native-safe-area-context/*',
+        'react-native/**',
+        'nativewind/**',
       ],
       message: 'UI libraries may only be used inside packages/ui. Import from @jci/ui.',
     },
