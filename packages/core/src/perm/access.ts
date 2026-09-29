@@ -29,6 +29,11 @@ export interface DocAccess {
    * `before` is the stored document, or null on create.
    */
   unwritableKeys(patch: Record<string, unknown>, before: Record<string, unknown> | null): string[];
+  /**
+   * `redactDoc(doc, readableFields)`, except that each readable Table field's rows keep only the child
+   * fields whose permlevel the caller may read. Use this rather than `redactDoc` for anything sent to a client.
+   */
+  redact(doc: Record<string, unknown>): Record<string, unknown>;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -61,9 +66,12 @@ function lockedChildKeys(
     if (f.fieldtype !== 'Table' || !Array.isArray(rows)) continue;
     const beforeValue = before?.[f.fieldname];
     const beforeRows: unknown[] = Array.isArray(beforeValue) ? beforeValue : [];
+    const count = Math.max(rows.length, beforeRows.length);
     for (const cf of resolveChild(f.childDocType!).fields) {
       if (!isLocked(cf, levels)) continue;
-      const changed = rows.some((row: unknown, i) => {
+      // Indexes past either end read as null, so a removed row holding a locked value counts as a change.
+      const changed = Array.from({ length: count }).some((_, i) => {
+        const row: unknown = rows[i];
         const old: unknown = beforeRows[i];
         const next = isRecord(row) ? (row[cf.fieldname] ?? null) : null;
         const prev = isRecord(old) ? (old[cf.fieldname] ?? null) : null;
@@ -76,11 +84,14 @@ function lockedChildKeys(
 }
 
 export function resolveDocAccess(input: DocAccessInput): DocAccess {
-  const { meta, user, doc, resolveChild } = input;
+  const { meta, user, resolveChild } = input;
+  // An org-scoped doc without an org path must never be treated as global: deny everyone.
+  const doc: DocContext = meta.orgScoped && input.doc.orgPath === null ? { ...input.doc, orgPath: [] } : input.doc;
   const fields = mergeCustomFields(meta, input.customFields);
   const byKey = new Map(fields.map((f) => [fieldKey(f), f]));
   const canCreate = can(meta, user, 'create', doc);
   const writeLevels = permittedLevels(meta, user, 'write', doc);
+  const readable = readableFields(meta, fields, user, doc);
   const schemas = new Map<'create' | 'update', z.ZodType>();
 
   return {
@@ -89,7 +100,7 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
     canWrite: can(meta, user, 'write', doc),
     canCreate,
     canDelete: can(meta, user, 'delete', doc),
-    readableFields: readableFields(meta, fields, user, doc),
+    readableFields: readable,
     schema(mode) {
       let s = schemas.get(mode);
       if (!s) {
@@ -106,6 +117,22 @@ export function resolveDocAccess(input: DocAccessInput): DocAccess {
         return f !== undefined && isLocked(f, levels) && !deepEqual(getFieldValue(patch, key), getFieldValue(before, key));
       });
       return [...locked, ...lockedChildKeys(meta, resolveChild, levels, patch, before)];
+    },
+    redact(target) {
+      const out = redactDoc(target, readable);
+      const readLevels = permittedLevels(meta, user, 'read', doc);
+      for (const f of readable) {
+        const rows = out[f.fieldname];
+        if (f.fieldtype !== 'Table' || f.isCustom || !Array.isArray(rows)) continue;
+        const visible = resolveChild(f.childDocType!).fields.filter((cf) => readLevels.has(cf.permlevel ?? 0));
+        out[f.fieldname] = rows.map((row: unknown) => {
+          if (!isRecord(row)) return row;
+          const kept: Record<string, unknown> = {};
+          for (const cf of visible) if (cf.fieldname in row) kept[cf.fieldname] = row[cf.fieldname];
+          return kept;
+        });
+      }
+      return out;
     },
   };
 }

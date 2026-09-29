@@ -117,6 +117,17 @@ describe('resolveDocAccess', () => {
     ).toEqual(['dues.verified']);
   });
 
+  it('treats removed child rows as changes to their locked fields', () => {
+    expect(access(member).unwritableKeys({ dues: [] }, before)).toEqual(['dues.amount', 'dues.verified']);
+    expect(access(officer, { orgPath: KL, ownerPersonId: 'p1' }).unwritableKeys({ dues: [] }, before)).toEqual(['dues.verified']);
+  });
+
+  it('denies an org-scoped doc that has no orgPath', () => {
+    const a = access(member, { orgPath: null, ownerPersonId: 'p1' });
+    expect(a.canRead).toBe(false);
+    expect(a.readableFields).toEqual([]);
+  });
+
   it('checks custom fields and builds each schema once', () => {
     const customFields: FieldDef[] = [{ fieldname: 'shirtSize', label: 'Shirt', fieldtype: 'Data', permlevel: 1 }];
     const a = access(member, own, customFields);
@@ -131,6 +142,16 @@ describe('resolveDocAccess', () => {
     const outsider: UserContext = { uid: 'u4', personId: null, grants: [{ role: 'Member', orgId: 'jci-pj', withDescendants: false }] };
     expect(access(outsider).readableFields).toEqual([]);
     expect(access(member).readableFields.map((f) => f.fieldname)).toEqual(['fullName', 'membershipType', 'authUid', 'dues']);
+  });
+});
+
+describe('redact', () => {
+  it('drops child fields above the caller read permlevels', () => {
+    const boardMeta = { ...person, permissions: [...person.permissions, { role: 'BoardMember' as const, read: true }] };
+    const board: UserContext = { uid: 'u5', personId: 'p5', grants: [{ role: 'BoardMember', orgId: 'jci-kl', withDescendants: false }] };
+    const b = resolveDocAccess({ meta: boardMeta, customFields: [], user: board, doc: own, resolveChild });
+    expect(b.redact(before).dues).toEqual([{ year: 2025, verified: true }]);
+    expect(access(member).redact(before).dues).toEqual([{ year: 2025, amount: 350, verified: true }]);
   });
 });
 

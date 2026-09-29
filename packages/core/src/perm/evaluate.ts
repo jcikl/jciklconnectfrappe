@@ -1,4 +1,3 @@
-import { fieldKey } from '../meta/customFields';
 import type { DocPerm, DocTypeMeta, FieldDef, RoleName } from '../meta/types';
 
 export interface RoleGrant {
@@ -72,24 +71,4 @@ export function patchKeys(patch: Record<string, unknown>): string[] {
     }
   }
   return keys;
-}
-
-/**
- * Keys in the patch the user may not write (readOnly or above their write permlevels).
- * Unknown keys are ignored here; schema validation rejects them.
- */
-export function unwritableKeys(
-  meta: DocTypeMeta,
-  fields: readonly FieldDef[],
-  user: UserContext,
-  doc: DocContext,
-  patch: Record<string, unknown>,
-): string[] {
-  const levels = permittedLevels(meta, user, 'write', doc);
-  const byKey = new Map(fields.map((f) => [fieldKey(f), f]));
-  return patchKeys(patch).filter((key) => {
-    const f = byKey.get(key);
-    if (!f) return false;
-    return f.readOnly === true || !levels.has(f.permlevel ?? 0);
-  });
 }

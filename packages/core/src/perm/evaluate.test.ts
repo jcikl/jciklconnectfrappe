@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { mergeCustomFields } from '../meta/customFields';
 import { defineDocType } from '../meta/defineDocType';
-import { can, effectiveRoles, grantApplies, patchKeys, readableFields, unwritableKeys, type UserContext } from './evaluate';
+import type { DocTypeMeta, FieldDef } from '../meta/types';
+import { can, effectiveRoles, grantApplies, patchKeys, readableFields, type DocContext, type UserContext } from './evaluate';
+import { resolveDocAccess } from './access';
 
 const KL = ['jci', 'jci-asia-pacific', 'jci-malaysia', 'jci-malaysia-central', 'jci-kl'];
 const PJ = ['jci', 'jci-asia-pacific', 'jci-malaysia', 'jci-malaysia-central', 'jci-pj'];
@@ -32,6 +33,16 @@ const nationalOfficer: UserContext = {
   personId: 'p2',
   grants: [{ role: 'MembershipOfficer', orgId: 'jci-malaysia', withDescendants: true }],
 };
+const noChild = (name: string): never => {
+  throw new Error(`unexpected child ${name}`);
+};
+const unwritable = (
+  meta: DocTypeMeta,
+  customFields: readonly FieldDef[],
+  user: UserContext,
+  doc: DocContext,
+  patch: Record<string, unknown>,
+) => resolveDocAccess({ meta, customFields, user, doc, resolveChild: noChild }).unwritableKeys(patch, null);
 const klDoc = { orgPath: KL, ownerPersonId: 'p9' };
 const ownDoc = { orgPath: KL, ownerPersonId: 'p1' };
 
@@ -73,19 +84,19 @@ describe('can', () => {
 
 describe('field-level permissions', () => {
   it('blocks permlevel-1 and readOnly fields for members', () => {
-    expect(unwritableKeys(person, person.fields, member, ownDoc, { fullName: 'A', membershipType: 'Official' })).toEqual(['membershipType']);
-    expect(unwritableKeys(person, person.fields, member, ownDoc, { phone: '012' })).toEqual([]);
+    expect(unwritable(person, [], member, ownDoc, { fullName: 'A', membershipType: 'Official' })).toEqual(['membershipType']);
+    expect(unwritable(person, [], member, ownDoc, { phone: '012' })).toEqual([]);
   });
 
   it('allows permlevel-1 for officers but never readOnly fields', () => {
-    expect(unwritableKeys(person, person.fields, nationalOfficer, klDoc, { membershipType: 'Official' })).toEqual([]);
-    expect(unwritableKeys(person, person.fields, nationalOfficer, klDoc, { authUid: 'x' })).toEqual(['authUid']);
+    expect(unwritable(person, [], nationalOfficer, klDoc, { membershipType: 'Official' })).toEqual([]);
+    expect(unwritable(person, [], nationalOfficer, klDoc, { authUid: 'x' })).toEqual(['authUid']);
   });
 
   it('checks custom fields via custom.<name> keys', () => {
-    const fields = mergeCustomFields(person, [{ fieldname: 'shirtSize', label: 'Shirt', fieldtype: 'Data', permlevel: 1 }]);
     expect(patchKeys({ fullName: 'A', custom: { shirtSize: 'L' } })).toEqual(['fullName', 'custom.shirtSize']);
-    expect(unwritableKeys(person, fields, member, ownDoc, { custom: { shirtSize: 'L' } })).toEqual(['custom.shirtSize']);
+    const shirt: FieldDef[] = [{ fieldname: 'shirtSize', label: 'Shirt', fieldtype: 'Data', permlevel: 1 }];
+    expect(unwritable(person, shirt, member, ownDoc, { custom: { shirtSize: 'L' } })).toEqual(['custom.shirtSize']);
   });
 
   it('returns readable fields by permlevel', () => {
@@ -109,6 +120,6 @@ describe('field-level permissions', () => {
     });
     expect(readableFields(levelOneOnly, levelOneOnly.fields, member, klDoc)).toEqual([]);
     expect(can(levelOneOnly, member, 'read', klDoc)).toBe(false);
-    expect(unwritableKeys(levelOneOnly, levelOneOnly.fields, member, klDoc, { membershipType: 'Official' })).toEqual(['membershipType']);
+    expect(unwritable(levelOneOnly, [], member, klDoc, { membershipType: 'Official' })).toEqual(['membershipType']);
   });
 });
