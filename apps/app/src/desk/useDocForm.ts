@@ -54,6 +54,9 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
   const scopePath = useScopeOrgPath();
   const customDefs = useCustomFields(CUSTOM_FIELDS, meta.name);
   const [values, setValues] = useState<FormValues | null>(null);
+  // The stored data the form was filled from. Edits are diffed against this, not the live doc, so another
+  // user's change to a field this user did not touch is never sent back as a revert. undefined until filled.
+  const [baseline, setBaseline] = useState<Record<string, unknown> | null | undefined>(undefined);
   const [errors, setErrors] = useState<FormErrors>(NO_ERRORS);
   const [submitting, setSubmitting] = useState(false);
 
@@ -88,20 +91,27 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
   const fields = useMemo(() => (access ? formFields(access, resolveChild, isNew) : []), [access, isNew]);
 
   useEffect(() => {
-    if (values === null && access) setValues(formValues(fields, stored?.data ?? null));
+    if (values === null && access) {
+      setValues(formValues(fields, stored?.data ?? null));
+      setBaseline(stored?.data ?? null);
+    }
   }, [values, access, fields, stored]);
 
   if (doc.status === 'error') return { status: 'unavailable', title: `Can't open this ${label}`, message: doc.message };
   if (!isNew && doc.status === 'ready' && !stored) return { status: 'unavailable', title: 'Not found', message: `There is no ${label} "${id}".` };
   if (customDefs.status === 'error') return { status: 'unavailable', title: 'Could not load the form', message: customDefs.message };
   if (built && 'error' in built) return { status: 'unavailable', title: 'Could not load the form', message: built.error };
-  if (!access || values === null) return { status: 'loading' };
+  if (isNew && meta.orgScoped && scopePath === null) {
+    return { status: 'unavailable', title: 'Not available here', message: `Choose an organisation to create ${label} in.` };
+  }
+  if (!access || values === null || baseline === undefined) return { status: 'loading' };
   if (isNew && !access.canCreate) return { status: 'unavailable', title: 'Not allowed', message: `You can't create ${label} in this organisation.` };
   if (!isNew && !access.canRead) return { status: 'unavailable', title: 'Not allowed', message: `You can't see this ${label}.` };
 
   const current = values;
+  const before = baseline;
   async function save() {
-    const patch = formPayload(fields, current, stored?.data ?? null);
+    const patch = formPayload(fields, current, before);
     if (!isNew && Object.keys(patch).length === 0) {
       setErrors({ fields: {}, form: 'There are no changes to save.' });
       return;
@@ -125,6 +135,13 @@ export function useDocForm(meta: DocTypeMeta, id: string | null): DocFormState {
         }
       } else {
         await api.update(meta.name, id, patch);
+        // What was just saved is the new baseline (custom fields merge; other keys replace).
+        const { custom, ...top } = patch;
+        setBaseline((prev) => {
+          const base = prev ?? {};
+          const prevCustom = typeof base.custom === 'object' && base.custom !== null ? (base.custom as Record<string, unknown>) : {};
+          return { ...base, ...top, ...(custom ? { custom: { ...prevCustom, ...(custom as Record<string, unknown>) } } : {}) };
+        });
       }
     } catch (err) {
       setErrors(formErrorsFrom(err));
