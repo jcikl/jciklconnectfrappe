@@ -12,3 +12,9 @@
   framework = "#static"
   publish = "apps/app/dist"
   port = 8888
+
+# Single-page app: unknown paths serve the app shell. Functions with a config.path (/api/resource) match first.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
