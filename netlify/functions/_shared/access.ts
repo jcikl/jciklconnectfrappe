@@ -15,14 +15,20 @@ export async function loadUserContext(db: Firestore, uid: string): Promise<UserC
   return userContextFromAccess(snap.exists ? snap.data() : null, uid);
 }
 
-/** Recomputes userAccess/{uid} from the user's RoleAssignment documents. */
+/**
+ * Recomputes userAccess/{uid} from the user's RoleAssignment documents.
+ * Runs in one transaction so two concurrent rebuilds cannot let a stale write win
+ * (a lost grant, or a revoked grant coming back).
+ */
 export async function rebuildUserAccess(deps: { db: Firestore; registry: Registry }, uid: string): Promise<UserAccessDoc> {
   const collection = deps.registry.get(ROLE_ASSIGNMENT_DOCTYPE).collection;
-  const assignments = await deps.db.collection(collection).where('uid', '==', uid).get();
-  const grants = assignments.docs.map((d) => ({ role: d.get('role'), orgId: d.get('orgId'), withDescendants: d.get('withDescendants') }));
   const ref = deps.db.collection(USER_ACCESS_COLLECTION).doc(uid);
-  const personId: unknown = (await ref.get()).get('personId');
-  const access = buildUserAccess(uid, typeof personId === 'string' ? personId : null, grants);
-  await ref.set({ ...access, updatedAt: FieldValue.serverTimestamp() });
-  return access;
+  return deps.db.runTransaction(async (tx) => {
+    const assignments = await tx.get(deps.db.collection(collection).where('uid', '==', uid));
+    const grants = assignments.docs.map((d) => ({ role: d.get('role'), orgId: d.get('orgId'), withDescendants: d.get('withDescendants') }));
+    const personId: unknown = (await tx.get(ref)).get('personId');
+    const access = buildUserAccess(uid, typeof personId === 'string' ? personId : null, grants);
+    tx.set(ref, { ...access, updatedAt: FieldValue.serverTimestamp() });
+    return access;
+  });
 }

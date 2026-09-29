@@ -58,6 +58,22 @@ describe('userAccess sync', () => {
     expect((await rebuildUserAccess({ db: project.db, registry: testRegistry }, 'nobody')).grants).toEqual([]);
   });
 
+  it('rebuilds every affected uid even when one rebuild fails, then reports the failure', async () => {
+    await project.db.collection('roleAssignments').add({ uid: 'u-ok', role: 'Member', orgId: 'jci-kl', withDescendants: false });
+    // 'a/b' is not a valid document id, so the rebuild for the "before" uid throws.
+    await expect(
+      serverEffects.RoleAssignment!({
+        db: project.db,
+        registry: testRegistry,
+        doctype: 'RoleAssignment',
+        id: 'r1',
+        before: { uid: 'a/b' },
+        after: { uid: 'u-ok' },
+      }),
+    ).rejects.toThrow(/a\/b/);
+    expect((await accessOf('u-ok'))?.grants).toEqual([{ role: 'Member', orgId: 'jci-kl', withDescendants: false }]);
+  });
+
   it('stops org admins from escalating', async () => {
     await expect(assign('jci-pj', { uid: 'x', role: 'SystemManager' }, users.pjAdmin)).rejects.toMatchObject({
       status: 422,
