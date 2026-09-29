@@ -7,7 +7,17 @@ import { getFieldValue, type DocAccess } from '../perm/access';
 export interface FormField {
   def: FieldDef;
   key: string;
+  /**
+   * The caller may change this field. A Table field is editable only when every child column (hidden ones
+   * included) is readable: the client holds redacted rows, and sending them back would null unread columns.
+   */
   editable: boolean;
+  /**
+   * Table fields only: existing rows may not be removed (appending is still allowed). True when the table is
+   * editable but some child column is not, because the server compares locked columns row by row by position.
+   * Always false for other fields and for child columns.
+   */
+  rowsFixed: boolean;
   /** Child-table columns the caller may read (Table fields only); null for other field types. */
   children: FormField[] | null;
 }
@@ -26,15 +36,17 @@ const isRecord = (v: unknown): v is Record<string, unknown> => v !== null && typ
 export function formFields(access: DocAccess, resolveChild: (name: string) => DocTypeMeta, isNew: boolean): FormField[] {
   return access.readableFields
     .filter((def) => def.hidden !== true)
-    .map((def) => {
-      const editable = access.canEditField(def, isNew);
-      const children =
-        def.fieldtype === 'Table'
-          ? resolveChild(def.childDocType!)
-              .fields.filter((cf) => cf.hidden !== true && access.canReadField(cf))
-              .map((cf) => ({ def: cf, key: cf.fieldname, editable: editable && access.canEditField(cf, isNew), children: null }))
-          : null;
-      return { def, key: fieldKey(def), editable, children };
+    .map((def): FormField => {
+      if (def.fieldtype !== 'Table') {
+        return { def, key: fieldKey(def), editable: access.canEditField(def, isNew), rowsFixed: false, children: null };
+      }
+      const childFields = resolveChild(def.childDocType!).fields;
+      const editable = access.canEditField(def, isNew) && childFields.every((cf) => access.canReadField(cf));
+      const rowsFixed = editable && childFields.some((cf) => !access.canEditField(cf, isNew));
+      const children = childFields
+        .filter((cf) => cf.hidden !== true && access.canReadField(cf))
+        .map((cf) => ({ def: cf, key: cf.fieldname, editable: editable && access.canEditField(cf, isNew), rowsFixed: false, children: null }));
+      return { def, key: fieldKey(def), editable, rowsFixed, children };
     });
 }
 
@@ -75,18 +87,23 @@ export function formValues(fields: readonly FormField[], doc: Record<string, unk
 }
 
 /**
- * The body to send: editable fields only. On create (`before` null), every non-empty value; on update, only
- * values that differ from `before`. Optional blanks become null; custom values nest under `custom`;
- * tables are sent as complete rows.
+ * The body to send: editable fields only. On create (`before` null), every non-empty value (an empty table
+ * counts as empty); on update, only values that differ from `before`, compared with optional blanks as null
+ * on both sides. Optional blanks become null; custom values nest under `custom`; tables are sent as complete rows.
+ * Pass the full field list from formFields, not visibleFormFields: changed values of fields currently hidden
+ * by dependsOn are still sent.
  */
 export function formPayload(fields: readonly FormField[], values: FormValues, before: Record<string, unknown> | null): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   const custom: Record<string, unknown> = {};
+  const normalise = (f: FormField, v: unknown): unknown => (v === '' && f.def.reqd !== true ? null : v);
   for (const f of fields) {
     if (!f.editable) continue;
-    let v = values[f.key] ?? null;
-    if (v === '' && f.def.reqd !== true) v = null;
-    const unchanged = before === null ? v === null : deepEqual(v, getFieldValue(before, f.key));
+    const v = normalise(f, values[f.key] ?? null);
+    const unchanged =
+      before === null
+        ? v === null || (Array.isArray(v) && v.length === 0)
+        : deepEqual(v, normalise(f, getFieldValue(before, f.key)));
     if (unchanged) continue;
     if (f.key.startsWith('custom.')) custom[f.def.fieldname] = v;
     else out[f.key] = v;

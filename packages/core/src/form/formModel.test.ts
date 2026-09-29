@@ -39,11 +39,38 @@ const person = defineDocType({
     { role: 'Member', permlevel: 1, read: true },
     { role: 'MembershipOfficer', read: true, write: true, create: true },
     { role: 'MembershipOfficer', permlevel: 1, read: true, write: true },
+    { role: 'MembershipOfficer', permlevel: 2, read: true, write: true },
     { role: 'Treasurer', create: true },
+  ],
+});
+// Every column is readable by a Member, but `amount` is above a Member's write level.
+const feeRow = defineDocType({
+  name: 'FeeRow',
+  module: 't',
+  isChild: true,
+  fields: [
+    { fieldname: 'year', label: 'Year', fieldtype: 'Int', reqd: true },
+    { fieldname: 'amount', label: 'Amount', fieldtype: 'Currency', permlevel: 1 },
+  ],
+});
+const club = defineDocType({
+  name: 'Club',
+  module: 't',
+  collection: 'clubs',
+  fields: [
+    { fieldname: 'title', label: 'Title', fieldtype: 'Data' },
+    { fieldname: 'fees', label: 'Fees', fieldtype: 'Table', childDocType: 'FeeRow' },
+  ],
+  permissions: [
+    { role: 'Member', read: true, write: true },
+    { role: 'Member', permlevel: 1, read: true },
+    { role: 'MembershipOfficer', read: true, write: true },
+    { role: 'MembershipOfficer', permlevel: 1, read: true, write: true },
   ],
 });
 const resolveChild = (name: string) => {
   if (name === 'DuesRow') return duesRow;
+  if (name === 'FeeRow') return feeRow;
   throw new Error(`unexpected child ${name}`);
 };
 const shirt: FieldDef = { fieldname: 'shirtSize', label: 'Shirt size', fieldtype: 'Data', permlevel: 1 };
@@ -111,11 +138,53 @@ describe('formFields', () => {
     expect(f.membershipType!.editable).toBe(false);
     expect(f.authUid!.editable).toBe(false);
     expect(f['custom.shirtSize']!.editable).toBe(false);
+    // The member cannot read dues.secret, so the table is locked (see the redacted-values tests below).
+    expect(f.dues!.editable).toBe(false);
     expect(f.dues!.children!.map((c) => [c.key, c.editable])).toEqual([
-      ['year', true],
+      ['year', false],
       ['amount', false],
     ]);
     expect(f.fullName!.children).toBeNull();
+    expect(fields.every((x) => !x.rowsFixed)).toBe(true);
+  });
+
+  it('locks a table with a child column the caller cannot read, since redacted rows would null it', () => {
+    const a = access(member);
+    const fields = formFields(a, resolveChild, false);
+    const values = formValues(fields, a.redact(stored));
+    expect(values.dues).toEqual([{ year: 2025, amount: 350 }]);
+    // Without the lock, sending these rows back would be refused.
+    expect(a.unwritableKeys({ dues: values.dues }, stored)).toEqual(['dues.secret']);
+    expect(byKey(fields).dues!.editable).toBe(false);
+    expect(formPayload(fields, { ...values, dues: [{ year: 2026, amount: 350 }] }, stored)).toEqual({});
+  });
+
+  it('keeps a table editable when every column is readable, and redacted rows round-trip', () => {
+    const a = access(officer, 'p1');
+    const fields = formFields(a, resolveChild, false);
+    expect(byKey(fields).dues!.editable).toBe(true);
+    const values = formValues(fields, a.redact(stored));
+    expect(formPayload(fields, values, stored)).toEqual({});
+    const payload = formPayload(fields, { ...values, dues: [{ year: 2025, amount: 400, secret: 's' }] }, stored);
+    expect(payload).toEqual({ dues: [{ year: 2025, amount: 400, secret: 's' }] });
+    expect(a.unwritableKeys(payload, stored)).toEqual([]);
+  });
+
+  it('fixes existing rows when an editable table has a locked column', () => {
+    const doc = { orgPath: KL, ownerPersonId: 'p1' };
+    const clubAccess = (user: UserContext) => resolveDocAccess({ meta: club, customFields: [], user, doc, resolveChild });
+    const memberFields = byKey(formFields(clubAccess(member), resolveChild, false));
+    expect(memberFields.fees!.editable).toBe(true);
+    expect(memberFields.fees!.children!.map((c) => [c.key, c.editable])).toEqual([
+      ['year', true],
+      ['amount', false],
+    ]);
+    expect(memberFields.fees!.rowsFixed).toBe(true);
+    expect(memberFields.title!.rowsFixed).toBe(false);
+    expect(memberFields.fees!.children!.every((c) => !c.rowsFixed)).toBe(true);
+    const officerFields = byKey(formFields(clubAccess(officer), resolveChild, false));
+    expect(officerFields.fees!.editable).toBe(true);
+    expect(officerFields.fees!.rowsFixed).toBe(false);
   });
 
   it('makes nothing editable for a reader without write access', () => {
@@ -170,7 +239,21 @@ describe('formValues and formPayload', () => {
   });
 
   it('sends a changed child table as complete rows', () => {
-    const values = { ...formValues(officerFields, stored), dues: [{ year: 2025, amount: 400, secret: 's' }] };
+    // The officer reads every DuesRow column, so the redacted rows they hold are complete.
+    const held = formValues(officerFields, access(officer, 'p1').redact(stored));
+    const values = { ...held, dues: [{ ...(held.dues as Record<string, unknown>[])[0], amount: 400 }] };
     expect(formPayload(officerFields, values, stored)).toEqual({ dues: [{ year: 2025, amount: 400, secret: 's' }] });
+  });
+
+  it('does not send an untouched empty table on create', () => {
+    const createFields = formFields(access(officer, 'p2'), resolveChild, true);
+    expect(byKey(createFields).dues!.editable).toBe(true);
+    expect(formPayload(createFields, { ...formValues(createFields, null), fullName: 'New' }, null)).toEqual({ fullName: 'New' });
+  });
+
+  it('treats a stored optional blank as null, so an untouched one is not a change', () => {
+    const before = { ...stored, nickname: '' };
+    expect(formPayload(officerFields, formValues(officerFields, before), before)).toEqual({});
+    expect(formPayload(officerFields, { ...formValues(officerFields, before), nickname: 'AK' }, before)).toEqual({ nickname: 'AK' });
   });
 });

@@ -71,22 +71,26 @@ export function docTypeLabel(meta: DocTypeMeta): string {
   return meta.name.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
 }
 
+type DocFields = { orgId?: unknown; orgPath?: unknown; ownerPersonId?: unknown };
+
+function filterMatches(filter: ListFilter, doc: DocFields): boolean {
+  if (filter.field === 'orgPath') return Array.isArray(doc.orgPath) && (doc.orgPath as unknown[]).includes(filter.value);
+  return doc[filter.field] === filter.value;
+}
+
 /**
- * Rule-safe filters that include one stored document: listFilters for the first scope option that covers it
- * (an exact option at its org, or a subtree option on its orgPath). Null when no option covers it.
+ * Rule-safe filters that include one stored document. Tries listFilters for every scope option and keeps
+ * only results whose every filter matches the doc; the first match without an owner filter wins, then the
+ * first match with one. Null when no option yields filters that include the doc. Global DocTypes ignore the doc.
  */
-export function filtersForDoc(
-  meta: DocTypeMeta,
-  user: UserContext,
-  doc: { orgId?: unknown; orgPath?: unknown; ownerPersonId?: unknown },
-): ListFilter[] | null {
+export function filtersForDoc(meta: DocTypeMeta, user: UserContext, doc: DocFields): ListFilter[] | null {
   if (!meta.orgScoped) return listFilters(meta, user, null);
-  const orgPath = Array.isArray(doc.orgPath) ? (doc.orgPath as unknown[]) : [];
+  let ownerMatch: ListFilter[] | null = null;
   for (const option of scopeOptions(user)) {
-    const covers = option.withDescendants ? orgPath.includes(option.orgId) : doc.orgId === option.orgId;
-    if (!covers) continue;
     const filters = listFilters(meta, user, option);
-    if (filters) return filters;
+    if (!filters || !filters.every((f) => filterMatches(f, doc))) continue;
+    if (!filters.some((f) => f.field === 'ownerPersonId')) return filters;
+    ownerMatch ??= filters;
   }
-  return null;
+  return ownerMatch;
 }
