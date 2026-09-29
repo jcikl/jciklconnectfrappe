@@ -3,19 +3,20 @@ import type { Config, Context } from '@netlify/functions';
 import { getAuth } from 'firebase-admin/auth';
 import { firestoreFor, serverApp } from './_shared/admin';
 import { serverEffects } from './_shared/effects';
-import { parseOrigins } from './_shared/http';
-import { handleResource } from './_shared/resource';
+import { corsHeaders, parseOrigins, toErrorResponse } from './_shared/http';
+import { handleResource, type ResourceDeps } from './_shared/resource';
 
 export default async (req: Request, context: Context): Promise<Response> => {
-  const app = serverApp();
-  return handleResource(req, context.params, {
-    db: firestoreFor(app),
-    auth: getAuth(app),
-    registry,
-    controllers,
-    effects: serverEffects,
-    allowedOrigins: parseOrigins(process.env.ALLOWED_ORIGINS),
-  });
+  const allowedOrigins = parseOrigins(process.env.ALLOWED_ORIGINS);
+  let deps: ResourceDeps;
+  try {
+    const app = serverApp();
+    deps = { db: firestoreFor(app), auth: getAuth(app), registry, controllers, effects: serverEffects, allowedOrigins };
+  } catch (err) {
+    // Setup failures (missing or malformed credentials) get the generic JSON 500; details are only logged.
+    return toErrorResponse(err, corsHeaders(req, allowedOrigins));
+  }
+  return handleResource(req, context.params, deps);
 };
 
 export const config: Config = {

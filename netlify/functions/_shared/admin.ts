@@ -1,4 +1,4 @@
-import { cert, getApps, initializeApp, type App } from 'firebase-admin/app';
+import { cert, getApps, initializeApp, type App, type ServiceAccount } from 'firebase-admin/app';
 import { getFirestore, type Firestore } from 'firebase-admin/firestore';
 
 const configured = new WeakSet<Firestore>();
@@ -24,5 +24,12 @@ export function serverApp(): App {
   if (process.env.FIRESTORE_EMULATOR_HOST) return initializeApp({ projectId });
   const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!serviceAccount) throw new Error('FIREBASE_SERVICE_ACCOUNT is not set');
-  return initializeApp({ credential: cert(JSON.parse(serviceAccount)), projectId });
+  let key: ServiceAccount;
+  try {
+    key = JSON.parse(serviceAccount) as ServiceAccount;
+  } catch {
+    // Deliberately drop the parser's message: it can quote part of the secret.
+    throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON');
+  }
+  return initializeApp({ credential: cert(key), projectId });
 }

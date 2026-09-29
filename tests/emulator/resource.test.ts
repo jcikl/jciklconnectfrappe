@@ -63,6 +63,13 @@ describe('/api/resource', () => {
     expect(await res.json()).toEqual({ error: { code: 'unauthenticated', message: expect.any(String) } });
   });
 
+  it('accepts the Bearer scheme in any case', async () => {
+    const headers = new Headers({ authorization: `bearer  ${officer.idToken}`, 'content-type': 'application/json' });
+    const body = JSON.stringify({ orgId: 'jci-kl', data: { fullName: 'Lowercase' } });
+    const res = await handleResource(new Request('http://localhost/api/resource/Person', { method: 'POST', headers, body }), { doctype: 'Person' }, deps);
+    expect(res.status).toBe(201);
+  });
+
   it('creates a document and returns it', async () => {
     const res = await call('POST', '/api/resource/Person', { token: officer.idToken, body: { orgId: 'jci-kl', data: { fullName: 'Tan Ah Kow' } } });
     expect(res.status).toBe(201);
