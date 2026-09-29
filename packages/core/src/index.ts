@@ -12,3 +12,4 @@ export * from './perm/access';
 export * from './diff/diffDocs';
 export * from './access/userAccess';
 export * from './controller/types';
+export * from './rules/generateRules';
