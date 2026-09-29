@@ -15,14 +15,16 @@ export interface UserContext {
 }
 
 export interface DocContext {
-  /** Ancestors from the root, ending with the doc's own org. */
-  orgPath: readonly string[];
+  /** Ancestors from the root, ending with the doc's own org; null for a global (orgScoped: false) DocType. */
+  orgPath: readonly string[] | null;
   ownerPersonId?: string | null;
 }
 
 export type Action = 'read' | 'write' | 'create' | 'delete';
 
-export function grantApplies(grant: RoleGrant, orgPath: readonly string[]): boolean {
+export function grantApplies(grant: RoleGrant, orgPath: readonly string[] | null): boolean {
+  // Global DocTypes have no org: a role held anywhere applies.
+  if (orgPath === null) return true;
   if (orgPath.length === 0) return false;
   return grant.withDescendants ? orgPath.includes(grant.orgId) : orgPath[orgPath.length - 1] === grant.orgId;
 }

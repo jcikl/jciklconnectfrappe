@@ -8,4 +8,5 @@ export * from './org/hierarchy';
 export * from './meta/customFields';
 export * from './validate/buildSchema';
 export * from './perm/evaluate';
+export * from './perm/access';
 export * from './diff/diffDocs';
