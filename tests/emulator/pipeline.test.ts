@@ -261,16 +261,60 @@ describe('deleteDoc', () => {
 });
 
 describe('effects', () => {
-  it('run after commit with the stored documents before and after', async () => {
+  it('run after commit with the stored documents before and after, even for a no-op update', async () => {
     const seen: EffectContext[] = [];
     const withEffect: PipelineDeps = { ...deps, effects: { Person: async (ctx) => void seen.push(ctx) } };
     const r = await createDoc(withEffect, users.officer, 'Person', { orgId: 'jci-kl', data: { fullName: 'A' } });
+    // Changes nothing, but still runs the effect, so saving again retries a failed one.
     await updateDoc(withEffect, users.officer, 'Person', r.id, { data: { fullName: 'A' } });
     await deleteDoc(withEffect, users.officer, 'Person', r.id);
     expect(seen.map((c) => [c.before?.fullName ?? null, c.after?.fullName ?? null])).toEqual([
       [null, 'A'],
+      ['A', 'A'],
       ['A', null],
     ]);
+  });
+
+  it('retry a failed effect when the document is saved again unchanged', async () => {
+    let failing = true;
+    const flaky: PipelineDeps = {
+      ...deps,
+      effects: {
+        Person: async () => {
+          if (failing) throw new Error('boom');
+        },
+      },
+    };
+    await expect(createDoc(flaky, users.officer, 'Person', { orgId: 'jci-kl', data: { fullName: 'A' } })).rejects.toMatchObject({
+      code: 'effect_failed',
+      message: expect.stringMatching(/Save it again/),
+    });
+    const [id] = (await project.db.collection('persons').get()).docs.map((d) => d.id);
+    failing = false;
+    await expect(updateDoc(flaky, users.officer, 'Person', id!, { data: { fullName: 'A' } })).resolves.toMatchObject({ changed: [] });
+  });
+
+  it('run tx-effects inside the save and apply their writes with it', async () => {
+    const seen: (string | null)[][] = [];
+    const withTx: PipelineDeps = {
+      ...deps,
+      txEffects: {
+        Person: async (_tx, ctx) => {
+          seen.push([(ctx.before?.fullName as string) ?? null, (ctx.after?.fullName as string) ?? null]);
+          const n = seen.length;
+          return [(tx) => tx.set(project.db.collection('marks').doc(ctx.id), { n })];
+        },
+      },
+    };
+    const r = await createDoc(withTx, users.officer, 'Person', { orgId: 'jci-kl', data: { fullName: 'A' } });
+    await updateDoc(withTx, users.officer, 'Person', r.id, { data: { fullName: 'B' } });
+    await deleteDoc(withTx, users.officer, 'Person', r.id);
+    expect(seen).toEqual([
+      [null, 'A'],
+      ['A', 'B'],
+      ['B', null],
+    ]);
+    expect(await stored('marks', r.id)).toEqual({ n: 3 });
   });
 
   it('report a failed effect without undoing the save', async () => {
@@ -287,5 +331,11 @@ describe('effects', () => {
       code: 'effect_failed',
     });
     expect((await project.db.collection('persons').get()).size).toBe(1);
+    const [id] = (await project.db.collection('persons').get()).docs.map((d) => d.id);
+    // A delete cannot be retried by saving, so its message says so.
+    await expect(deleteDoc(failing, users.officer, 'Person', id!)).rejects.toMatchObject({
+      code: 'effect_failed',
+      message: expect.stringMatching(/administrator/),
+    });
   });
 });

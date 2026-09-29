@@ -43,7 +43,7 @@ Clients read Firestore directly; the generated rules scope those reads by org. E
 5. Check links and unique values.
 6. Write the document, its version entry and its naming counter.
 
-Post-commit effects, such as rebuilding `userAccess`, run after the transaction.
+Server-only effects run in the same transaction when they must commit with the change: a RoleAssignment save writes `userAccess` atomically, so a revocation cannot be lost. Post-commit effects run after the transaction; there are none in M2.
 
 ## Layout
 

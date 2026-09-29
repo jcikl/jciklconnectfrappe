@@ -33,14 +33,26 @@ export interface EffectContext {
   after: StoredDoc | null;
 }
 
-/** Server-only follow-up work, run after a change commits (for example rebuilding userAccess). */
+/**
+ * Server-only follow-up work, run after a change commits. Effects must be idempotent: they also run
+ * when an update changes nothing, so saving again retries a failed effect.
+ */
 export type EffectMap = Readonly<Record<string, (ctx: EffectContext) => Promise<void>>>;
+
+/**
+ * Server-only work that commits atomically with the change (for example userAccess for RoleAssignment).
+ * Runs inside the save transaction after every other read. It may read with `tx` but must not write;
+ * it returns the writes to apply with the document's own.
+ */
+export type TxEffect = (tx: Transaction, ctx: EffectContext) => Promise<PendingWrite[]>;
+export type TxEffectMap = Readonly<Record<string, TxEffect>>;
 
 export interface PipelineDeps {
   db: Firestore;
   registry: Registry;
   controllers: ControllerMap;
   effects?: EffectMap;
+  txEffects?: TxEffectMap;
   now?: () => Date;
   /** Time zone for naming-series dates. Default Asia/Kuala_Lumpur. */
   timeZone?: string;
@@ -154,6 +166,18 @@ function versionEntry(
   };
 }
 
+async function planTxEffect(
+  tx: Transaction,
+  deps: PipelineDeps,
+  meta: DocTypeMeta,
+  id: string,
+  before: StoredDoc | null,
+  after: StoredDoc | null,
+): Promise<PendingWrite[]> {
+  const effect = deps.txEffects?.[meta.name];
+  return effect ? effect(tx, { db: deps.db, registry: deps.registry, doctype: meta.name, id, before, after }) : [];
+}
+
 async function runEffect(deps: PipelineDeps, meta: DocTypeMeta, id: string, before: StoredDoc | null, after: StoredDoc | null) {
   const effect = deps.effects?.[meta.name];
   if (!effect) return;
@@ -161,7 +185,9 @@ async function runEffect(deps: PipelineDeps, meta: DocTypeMeta, id: string, befo
     await effect({ db: deps.db, registry: deps.registry, doctype: meta.name, id, before, after });
   } catch (err) {
     console.error(`Effect for ${meta.name} "${id}" failed`, err);
-    throw new ApiError(500, 'effect_failed', 'The change was saved, but a follow-up step failed. Save it again to retry.');
+    // A deleted document cannot be saved again, so only a create or update can be retried that way.
+    const next = after ? ' Save it again to retry.' : ' Ask an administrator to finish it.';
+    throw new ApiError(500, 'effect_failed', `The change was saved, but a follow-up step failed.${next}`);
   }
 }
 
@@ -223,6 +249,7 @@ export async function createDoc(
       updatedAt: at,
       updatedBy: user.uid,
     };
+    writes.push(...(await planTxEffect(tx, deps, meta, planned.id, null, doc)));
     const changed = diffDocs(null, doc);
     for (const write of writes) write(tx);
     tx.create(ref, doc);
@@ -267,12 +294,17 @@ export async function updateDoc(
     const ctx = contextFor(tx, deps, { meta, user, isNew: false, id, orgPath, before, doc: applyPatch(fields, parsed) });
     await runHooks(deps, ctx, 'save');
     const changed = diffDocs(before, ctx.doc);
-    if (changed.length === 0) return { before, doc: before, changed, access };
+    if (changed.length === 0) {
+      // Nothing to store, but the tx-effect still runs, so saving again repairs derived data.
+      for (const write of await planTxEffect(tx, deps, meta, id, before, before)) write(tx);
+      return { before, doc: before, changed, access };
+    }
     const writes: PendingWrite[] = [];
     await checkLinks(tx, deps, access.fields, before, ctx.doc);
     writes.push(...(await planUniques(tx, deps.db, meta, access.fields, id, before, ctx.doc)));
 
     const doc: StoredDoc = { ...ctx.doc, ...system, updatedAt: at, updatedBy: user.uid };
+    writes.push(...(await planTxEffect(tx, deps, meta, id, before, doc)));
     for (const write of writes) write(tx);
     tx.set(ref, doc);
     if (meta.trackChanges) {
@@ -281,7 +313,8 @@ export async function updateDoc(
     return { before, doc, changed, access };
   });
 
-  if (saved.changed.length > 0) await runEffect(deps, meta, id, saved.before, saved.doc);
+  // Runs on a no-op update too, so saving again retries a failed effect.
+  await runEffect(deps, meta, id, saved.before, saved.doc);
   return respond(saved.doc, saved.access, saved.changed);
 }
 
@@ -305,6 +338,7 @@ export async function deleteDoc(deps: PipelineDeps, user: UserContext, doctype: 
     await runHooks(deps, ctx, 'delete');
     const writes: PendingWrite[] = [];
     writes.push(...(await planUniques(tx, deps.db, meta, access.fields, id, before, {})));
+    writes.push(...(await planTxEffect(tx, deps, meta, id, before, null)));
 
     for (const write of writes) write(tx);
     tx.delete(ref);

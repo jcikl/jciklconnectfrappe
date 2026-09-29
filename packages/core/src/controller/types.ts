@@ -23,7 +23,7 @@ export interface HookContext {
 
 /**
  * Pure DocType logic, shared by client and server. Throw ValidationError to reject a change.
- * Post-commit side effects are server-only (netlify/functions/_shared/effects.ts).
+ * Side effects, in-transaction or post-commit, are server-only (netlify/functions/_shared/effects.ts).
  */
 export interface Controller {
   validate?(ctx: HookContext): void | Promise<void>;

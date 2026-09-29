@@ -2,7 +2,7 @@ import { buildUserAccess, type RoleGrant } from '@jci/core';
 import { controllers } from '@jci/doctypes';
 import { getAuth } from 'firebase-admin/auth';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import { serverEffects } from '../../netlify/functions/_shared/effects';
+import { serverEffects, serverTxEffects } from '../../netlify/functions/_shared/effects';
 import { handleResource, type ResourceDeps } from '../../netlify/functions/_shared/resource';
 import { NOW, seedOrgs, testRegistry } from './fixtures';
 import { clearAuth, signUp, testProject } from './helpers';
@@ -38,6 +38,7 @@ beforeAll(async () => {
     registry: testRegistry,
     controllers,
     effects: serverEffects,
+    txEffects: serverTxEffects,
     allowedOrigins: [ORIGIN],
     now: () => NOW,
   };

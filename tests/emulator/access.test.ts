@@ -1,13 +1,13 @@
 import { controllers } from '@jci/doctypes';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { loadUserContext, rebuildUserAccess } from '../../netlify/functions/_shared/access';
-import { serverEffects } from '../../netlify/functions/_shared/effects';
+import { loadUserContext, rebuildUserAccess, syncUserAccessInTx } from '../../netlify/functions/_shared/access';
+import { serverTxEffects } from '../../netlify/functions/_shared/effects';
 import { createDoc, deleteDoc, updateDoc, type PipelineDeps } from '../../netlify/functions/_shared/pipeline';
 import { NOW, seedOrgs, testRegistry, users } from './fixtures';
 import { testProject } from './helpers';
 
 const project = testProject('demo-jci-access');
-const deps: PipelineDeps = { db: project.db, registry: testRegistry, controllers, effects: serverEffects, now: () => NOW };
+const deps: PipelineDeps = { db: project.db, registry: testRegistry, controllers, txEffects: serverTxEffects, now: () => NOW };
 const accessOf = async (uid: string) => (await project.db.collection('userAccess').doc(uid).get()).data();
 const assign = (orgId: string, data: Record<string, unknown>, user = users.admin) => createDoc(deps, user, 'RoleAssignment', { orgId, data });
 
@@ -58,20 +58,44 @@ describe('userAccess sync', () => {
     expect((await rebuildUserAccess({ db: project.db, registry: testRegistry }, 'nobody')).grants).toEqual([]);
   });
 
-  it('rebuilds every affected uid even when one rebuild fails, then reports the failure', async () => {
-    await project.db.collection('roleAssignments').add({ uid: 'u-ok', role: 'Member', orgId: 'jci-kl', withDescendants: false });
-    // 'a/b' is not a valid document id, so the rebuild for the "before" uid throws.
-    await expect(
-      serverEffects.RoleAssignment!({
-        db: project.db,
-        registry: testRegistry,
-        doctype: 'RoleAssignment',
-        id: 'r1',
-        before: { uid: 'a/b' },
-        after: { uid: 'u-ok' },
-      }),
-    ).rejects.toThrow(/a\/b/);
-    expect((await accessOf('u-ok'))?.grants).toEqual([{ role: 'Member', orgId: 'jci-kl', withDescendants: false }]);
+  it('rejects a uid that cannot name a userAccess document, storing nothing', async () => {
+    await expect(assign('jci-kl', { uid: 'a/b', role: 'Member' })).rejects.toMatchObject({
+      status: 422,
+      details: { issues: [{ path: 'uid' }] },
+    });
+    expect((await project.db.collection('roleAssignments').get()).size).toBe(0);
+  });
+
+  it('commits userAccess atomically with the assignment', async () => {
+    const member = await assign('jci-kl', { uid: 'u-new', role: 'Member' });
+    // The real tx-effect runs, then another write in the same commit fails: nothing may land.
+    await project.db.collection('userAccess').doc('taken').set({});
+    const failAtCommit: PipelineDeps = {
+      ...deps,
+      txEffects: {
+        RoleAssignment: async (tx, ctx) => [
+          ...(await syncUserAccessInTx(tx, ctx)),
+          (t) => t.create(project.db.collection('userAccess').doc('taken'), {}),
+        ],
+      },
+    };
+    await expect(deleteDoc(failAtCommit, users.admin, 'RoleAssignment', member.id)).rejects.toThrow();
+    await expect(updateDoc(failAtCommit, users.admin, 'RoleAssignment', member.id, { data: { uid: 'u-other' } })).rejects.toThrow();
+    expect((await accessOf('u-new'))?.grants).toEqual([{ role: 'Member', orgId: 'jci-kl', withDescendants: false }]);
+    expect(await accessOf('u-other')).toBeUndefined();
+    expect((await project.db.collection('roleAssignments').doc(member.id).get()).get('uid')).toBe('u-new');
+
+    // The failed delete left the assignment in place, so retrying it works and revokes the grant.
+    await deleteDoc(deps, users.admin, 'RoleAssignment', member.id);
+    expect((await accessOf('u-new'))?.grants).toEqual([]);
+  });
+
+  it('repairs a stale userAccess when an assignment is saved again unchanged', async () => {
+    const member = await assign('jci-kl', { uid: 'u-new', role: 'Member' });
+    await project.db.collection('userAccess').doc('u-new').set({ uid: 'u-new', personId: null, grants: [], scopes: {} });
+    const r = await updateDoc(deps, users.admin, 'RoleAssignment', member.id, { data: { uid: 'u-new' } });
+    expect(r.changed).toEqual([]);
+    expect((await accessOf('u-new'))?.grants).toEqual([{ role: 'Member', orgId: 'jci-kl', withDescendants: false }]);
   });
 
   it('stops org admins from escalating', async () => {
