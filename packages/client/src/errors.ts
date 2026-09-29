@@ -13,5 +13,5 @@ const MESSAGES: Record<string, string | null> = {
 /** A message to show for a failed sign-in, or null when the user simply cancelled. */
 export function authErrorMessage(err: unknown): string | null {
   const code = err !== null && typeof err === 'object' && 'code' in err ? String((err as { code: unknown }).code) : '';
-  return code in MESSAGES ? MESSAGES[code]! : 'Sign-in failed. Please try again.';
+  return Object.hasOwn(MESSAGES, code) ? MESSAGES[code]! : 'Sign-in failed. Please try again.';
 }

@@ -26,7 +26,19 @@ const client = initClient({
   appName: 'client-test',
 });
 const EMAIL = 'client-member@jci.test';
+const OTHER_EMAIL = 'client-other@jci.test';
 let uid = '';
+let otherUid = '';
+
+/** Records every snapshot (the current one first) until `done` holds, then unsubscribes. */
+async function record<T>(store: Store<T>, done: (value: T) => boolean): Promise<T[]> {
+  const seen: T[] = [];
+  await waitFor(store, (value) => {
+    seen.push(value);
+    return done(value);
+  });
+  return seen;
+}
 
 /** Resolves with the first snapshot that satisfies `done`. */
 function waitFor<T>(store: Store<T>, done: (value: T) => boolean, timeoutMs = 10000): Promise<T> {
@@ -56,6 +68,11 @@ beforeAll(async () => {
     .collection('userAccess')
     .doc(uid)
     .set(buildUserAccess(uid, 'p-member', [{ role: 'Member', orgId: 'jci-kl', withDescendants: false }]));
+  ({ uid: otherUid } = await signUp(OTHER_EMAIL));
+  await admin.db
+    .collection('userAccess')
+    .doc(otherUid)
+    .set(buildUserAccess(otherUid, 'p-other', [{ role: 'Member', orgId: 'jci-pj', withDescendants: false }]));
 });
 
 afterAll(async () => {
@@ -102,5 +119,40 @@ describe('@jci/client against the emulators', () => {
   it('signs out', async () => {
     await signOutUser(client);
     expect((await waitFor(auth, (s) => s.status === 'signedOut')).status).toBe('signedOut');
+  });
+
+  it("never shows the previous user's cached rows or grants to the next user", async () => {
+    const filters = [{ field: 'orgId', op: '==', value: 'jci-kl' }] as const;
+    // User A lists jci-kl and keeps the listeners open across the switch, so the local cache holds A's data.
+    await signInWithEmail(client, EMAIL, 'emulator-only-password');
+    await waitFor(auth, (s) => s.status === 'signedIn' && s.uid === uid);
+    const aDocs = createDocsStore(client.db, Organization.collection, filters);
+    const aAccess = createAccessStore(client.db, uid);
+    const aDocsState = await waitFor(aDocs, (s) => s.status !== 'loading');
+    expect(aDocsState.status === 'ready' && aDocsState.docs.map((d) => d.id)).toEqual(['jci-kl']);
+    expect((await waitFor(aAccess, (s) => s.status !== 'loading')).status).toBe('ready');
+    const keepA = [aDocs.subscribe(() => {}), aAccess.subscribe(() => {})];
+
+    // User B (Member at jci-pj only) signs in on the same client.
+    await signOutUser(client);
+    await waitFor(auth, (s) => s.status === 'signedOut');
+    await signInWithEmail(client, OTHER_EMAIL, 'emulator-only-password');
+    await waitFor(auth, (s) => s.status === 'signedIn' && s.uid === otherUid);
+
+    const docs = await record(createDocsStore(client.db, Organization.collection, filters), (s) => s.status !== 'loading');
+    expect(docs.map((s) => s.status)).toEqual([...docs.slice(0, -1).map(() => 'loading'), 'error']);
+
+    const ownAccess = await record(createAccessStore(client.db, otherUid), (s) => s.status !== 'loading');
+    expect(ownAccess.slice(0, -1).every((s) => s.status === 'loading')).toBe(true);
+    expect(ownAccess.at(-1)).toEqual({
+      status: 'ready',
+      user: { uid: otherUid, personId: 'p-other', grants: [{ role: 'Member', orgId: 'jci-pj', withDescendants: false }] },
+    });
+
+    const aAccessAsB = await record(createAccessStore(client.db, uid), (s) => s.status !== 'loading');
+    expect(aAccessAsB.map((s) => s.status)).toEqual([...aAccessAsB.slice(0, -1).map(() => 'loading'), 'error']);
+
+    keepA.forEach((stop) => stop());
+    await signOutUser(client);
   });
 });

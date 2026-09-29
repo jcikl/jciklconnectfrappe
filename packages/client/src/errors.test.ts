@@ -21,4 +21,9 @@ describe('authErrorMessage', () => {
     expect(authErrorMessage({ code: 'auth/something-new' })).toBe('Sign-in failed. Please try again.');
     expect(authErrorMessage(new Error('boom'))).toBe('Sign-in failed. Please try again.');
   });
+
+  it('ignores codes that match Object.prototype keys', () => {
+    expect(authErrorMessage({ code: 'toString' })).toBe('Sign-in failed. Please try again.');
+    expect(authErrorMessage({ code: 'constructor' })).toBe('Sign-in failed. Please try again.');
+  });
 });
