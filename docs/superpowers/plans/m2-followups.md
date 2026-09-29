@@ -49,6 +49,7 @@ Open items from the per-task reviews (`.superpowers/sdd/progress.md`) and the fi
 - Deleting an Organization orphans its children and their role assignments, and reusing the code later re-attaches the old grants. Block deletes of orgs with children or assignments, or cascade.
 - Organization custom fields load with `parentPath` on create but with the org's own `orgPath` on update, so create and update can see different field sets.
 - CustomField `options` and `link` can still change after create, which can strand stored values. Fix early in M3.
+- An admin with an exact (non-subtree) grant can add a custom field at a non-leaf org, and `loadCustomFields` then applies it, even `reqd`, to every org below. Require a subtree grant when `org` has children, or always, to match `coversSubtree`.
 
 ### Pipeline and API (`netlify/functions`)
 - Link checks and unique-value 409s reveal whether a document exists in another org. Decide whether to answer as "not found" or accept the leak.
