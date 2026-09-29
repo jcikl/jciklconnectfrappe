@@ -32,6 +32,30 @@ Design: `docs/superpowers/specs/2026-09-29-jci-platform-core-member-crm-design.m
    - The bundle is not rebuilt on change: rerun `npm run dev:api` after editing server code.
    - Why the prebuild: Netlify bundles v2 functions with NFT and keeps every package import external, so the raw TypeScript workspace packages would otherwise be loaded as `.ts` at runtime.
 
+## Running the app locally
+
+1. `npm run emulators` (leave it running).
+2. `npm run seed:dev`. This creates the org tree and two emulator-only accounts. Both use the password `jci-dev-password`:
+   - `admin@jci.test`: System Manager for everything
+   - `member@jci.test`: Member at JCI Kuala Lumpur
+3. `cd apps/app`, then one of:
+   - `npx expo start --web` for the browser at http://localhost:8081
+   - `npx expo start`, then press `a` for the Android emulator. Expo Go reaches the PC at `10.0.2.2`.
+4. Sign in. The Desk lists only the DocTypes your roles can read. Lists come straight from Firestore through the generated rules.
+
+Saving (M3b) goes through `/api/resource`, so run `npm run dev:api` alongside when you need writes.
+
+If `npm run typecheck` rejects a new route, delete `apps/app/.expo/types` or run `npx expo start` once; the typed-route file is generated locally and ignored by git.
+
+The app reads these `EXPO_PUBLIC_*` variables:
+- `EXPO_PUBLIC_USE_EMULATORS`: set it to `false` to use a real Firebase project.
+- `EXPO_PUBLIC_FIREBASE_PROJECT_ID` and `EXPO_PUBLIC_FIREBASE_API_KEY`
+- `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` and `EXPO_PUBLIC_FIREBASE_APP_ID`
+- `EXPO_PUBLIC_EMULATOR_HOST`
+- `EXPO_PUBLIC_API_BASE_URL`
+
+The defaults target the `demo-jci` emulators.
+
 ## How writes work
 
 Clients read Firestore directly; the generated rules scope those reads by org. Every write goes through `/api/resource`, which runs one transaction with these steps:
@@ -51,6 +75,7 @@ Server-only effects run in the same transaction when they must commit with the c
 | --- | --- |
 | `packages/core` | The pure TypeScript engine: meta, validation, permissions, diff, the rules generator |
 | `packages/doctypes` | DocType definitions and their controllers |
+| `packages/client` | `@jci/client`: the Firebase client, live Firestore stores and the `/api/resource` client; `@jci/client/react` has the hooks |
 | `packages/ui` | `@jci/ui`, the only UI library app code may use |
 | `apps/app` | The Expo Router app |
 | `netlify/functions` | `/api/resource` and its `_shared/` modules |
